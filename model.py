@@ -1,3 +1,5 @@
+import re
+
 import numpy as np
 import tensorflow as tf
 import keras
@@ -17,20 +19,7 @@ def main():
     for row in reader:
         inputs_outputs.append([])
         for value in row[1:]:
-            num = value
-            if value == '':
-                num = '0'
-            if value == 'QB':
-                num = '0'
-            if value == 'OT':
-                num = '1'
-            if value == 'OL':
-                num = '2'
-            if value == 'OG':
-                num = '3'
-            if value == 'C':
-                num = '4'
-            inputs_outputs[-1].append(float(num))
+            inputs_outputs[-1].append(float(preprocess(value)))
 
     random.shuffle(inputs_outputs)
 
@@ -135,6 +124,69 @@ def main():
     if positive_counterfactuals[0][1] > richardson:
         swr = positive_counterfactuals[-1]
         print("strangely, richardson would be worse if his %s was better (pick %.2f)." % (swr[0], swr[1]))
+
+
+def preprocess(value):
+    # create a position code for each position. change to one-hot
+    if value == '':
+        num = '0'
+    elif value == 'QB':
+        num = '0'
+    elif value == 'OT':
+        num = '1'
+    elif value == 'OL' or value == 'OG':
+        num = '2'
+    elif value == 'C':
+        num = '3'
+    elif value == 'RB':
+        num = '4'
+    elif value == 'TE':
+        num = '5'
+    elif value == 'WR':
+        num = '6'
+    elif value == 'DT':
+        num = '7'
+    elif value == 'DL':
+        num = '8'
+    elif value == 'DE' or value == 'EDGE':
+        num = '9'
+    elif value == 'OLB':
+        num = '10'
+    elif value == 'LB':
+        num = '11'
+    elif value == 'CB':
+        num = '12'
+    elif value == 'DB':
+        num = '13'
+    elif value == 'S':
+        num = '14'
+    elif value == 'P':
+        num = '15'
+    elif value == 'K':
+        num = '16'
+    elif is_num(value):
+        num = value
+    elif '/' in value:
+        pick_num = value.split(" / ")
+        # find the first letter in the text (should be "rd" or "st" or "nd" or "th")
+        ind = re.search("[a-zA-Z]", pick_num[2]).span(0)[0]
+
+        assert (pick_num[2][3:5] == "rd" or pick_num[2][3:5] == "st" or pick_num[2][3:5] == "nd" or
+                pick_num[2][3:5] == "th", "value: " + pick_num[2][3:4])
+
+        num = pick_num[2][:ind]
+    else:
+        raise Exception("Unknown input: %s" % value)
+
+    return num
+
+
+def is_num(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
 
 
 main()
