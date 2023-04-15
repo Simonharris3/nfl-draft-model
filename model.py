@@ -7,7 +7,7 @@ import random
 import math
 
 num_inputs = 34
-epochs = 500
+epochs = 70
 neurons = [9, 9, 9, 9]
 lr = 0.001
 he_normal = True
@@ -37,14 +37,13 @@ def main():
     train_input, train_output, test_input, test_output = split_train_test(inputs_outputs)
 
     model = keras.models.load_model("model")
-    # model = leaky_model()
     # layers = [layer for layer in keras.models.load_model("model").layers]
     # if he_normal:
     #     initializer = tf.keras.initializers.HeNormal()
     # else:
     #     initializer = tf.keras.initializers.GlorotUniform()
-    # new_layer = keras.layers.Dense(3, name="new_layer", activation="relu", kernel_initializer=initializer)
-    # new_leaky = keras.layers.LeakyReLU(name="new_leaky")
+    # new_layer = keras.layers.Dense(3, name="layer_5", activation="relu", kernel_initializer=initializer)
+    # new_leaky = keras.layers.LeakyReLU(name="leky_2")
     # layers.insert(-1, new_layer)
     # layers.insert(-1, new_leaky)
     # model = keras.models.Sequential(layers)
@@ -56,66 +55,67 @@ def main():
     model.fit(train_input, train_output, epochs=epochs)
     score = model.evaluate(test_input, test_output)
 
-    if score < 6000:
+    if score < 4900:
         model.save("model")
+        print("model saved!")
 
-    richardson_data = np.array([one_hot(0) + [1, 76, 1, 244, 1, 4.43, 1, 40.5, 0, 0, 1, 129, 0, 0, 0, 0]])
-    richardson = model.predict(richardson_data)[0][0]
-    positive_counterfactuals, negative_counterfactuals = counterfactuals(model)
-    print("Anthony Richardson prediction: pick " + str(round(richardson)))
-
-    negative_counterfactuals.sort(key=lambda x: x[1])  # sort by the model's prediction
-    positive_counterfactuals.sort(key=lambda x: x[1])
-    worse_richardson = negative_counterfactuals[-3:]
-    better_richardson = positive_counterfactuals[:3]
-
-    i = 0
-    while i < len(worse_richardson):
-        if worse_richardson[i][1] <= richardson:
-            worse_richardson.pop(i)
-            i -= 1
-        i += 1
-
-    while i < len(better_richardson):
-        if better_richardson[i][1] >= richardson:
-            better_richardson.pop(i)
-            i -= 1
-        i += 1
-
-    wr = worse_richardson
-    if len(wr) == 0:
-        print("richardson can't get any worse!")
-    if len(wr) == 1:
-        print("richardson would only be worse if his %s was worse (pick %.2f)." % (wr[0][0], wr[0][1]))
-    if len(wr) == 2:
-        print("richardson would be worse if his %s (pick %.2f) or his %s (pick %.2f) was worse." %
-              (wr[0][0], wr[0][1], wr[1][0], wr[1][1]))
-    if len(wr) == 3:
-        print("richardson would be worse if his %s (pick %.2f), his %s (pick %.2f), or his %s (pick %.2f) was worse." %
-              (wr[0][0], wr[0][1], wr[1][0], wr[1][1], wr[2][0], wr[2][1]))
-
-    br = better_richardson
-    if len(br) == 0:
-        print("richardson can't get any better!")
-    if len(br) == 1:
-        print("richardson would only be better if his %s was better (pick %.2f)." % (br[0][0], br[0][1]))
-    if len(br) == 2:
-        print("richardson would be better if his %s (pick %.2f) or his %s (pick %.2f) was better." %
-              (br[0][0], br[0][1], br[1][0], br[1][1]))
-    if len(br) == 3:
-        print("richardson would be better if his %s (pick %.2f), his %s (pick %.2f), or his %s (pick %.2f) was better."
-              % (br[0][0], br[0][1], br[1][0], br[1][1], br[2][0], br[2][1]))
-
-    # check if there's a way we could make one of richardson's measurables worse to make the model
-    # like him better, or vice versa
-    if negative_counterfactuals[0][1] < richardson:
-        # strange_better_richardson is too long
-        sbr = negative_counterfactuals[0]
-        print("strangely, richardson would be better if his %s was worse (pick %.2f)." % (sbr[0], sbr[1]))
-
-    if positive_counterfactuals[0][1] > richardson:
-        swr = positive_counterfactuals[-1]
-        print("strangely, richardson would be worse if his %s was better (pick %.2f)." % (swr[0], swr[1]))
+    # richardson_data = np.array([one_hot(0) + [1, 76, 1, 244, 1, 4.43, 1, 40.5, 0, 0, 1, 129, 0, 0, 0, 0]])
+    # richardson = model.predict(richardson_data)[0][0]
+    # positive_counterfactuals, negative_counterfactuals = counterfactuals(model)
+    # print("Anthony Richardson prediction: pick " + str(round(richardson)))
+    #
+    # negative_counterfactuals.sort(key=lambda x: x[1])  # sort by the model's prediction
+    # positive_counterfactuals.sort(key=lambda x: x[1])
+    # worse_richardson = negative_counterfactuals[-3:]
+    # better_richardson = positive_counterfactuals[:3]
+    #
+    # i = 0
+    # while i < len(worse_richardson):
+    #     if worse_richardson[i][1] <= richardson:
+    #         worse_richardson.pop(i)
+    #         i -= 1
+    #     i += 1
+    #
+    # while i < len(better_richardson):
+    #     if better_richardson[i][1] >= richardson:
+    #         better_richardson.pop(i)
+    #         i -= 1
+    #     i += 1
+    #
+    # wr = worse_richardson
+    # if len(wr) == 0:
+    #     print("richardson can't get any worse!")
+    # if len(wr) == 1:
+    #     print("richardson would only be worse if his %s was worse (pick %.2f)." % (wr[0][0], wr[0][1]))
+    # if len(wr) == 2:
+    #     print("richardson would be worse if his %s (pick %.2f) or his %s (pick %.2f) was worse." %
+    #           (wr[0][0], wr[0][1], wr[1][0], wr[1][1]))
+    # if len(wr) == 3:
+    #     print("richardson would be worse if his %s (pick %.2f), his %s (pick %.2f), or his %s (pick %.2f) was worse." %
+    #           (wr[0][0], wr[0][1], wr[1][0], wr[1][1], wr[2][0], wr[2][1]))
+    #
+    # br = better_richardson
+    # if len(br) == 0:
+    #     print("richardson can't get any better!")
+    # if len(br) == 1:
+    #     print("richardson would only be better if his %s was better (pick %.2f)." % (br[0][0], br[0][1]))
+    # if len(br) == 2:
+    #     print("richardson would be better if his %s (pick %.2f) or his %s (pick %.2f) was better." %
+    #           (br[0][0], br[0][1], br[1][0], br[1][1]))
+    # if len(br) == 3:
+    #     print("richardson would be better if his %s (pick %.2f), his %s (pick %.2f), or his %s (pick %.2f) was better."
+    #           % (br[0][0], br[0][1], br[1][0], br[1][1], br[2][0], br[2][1]))
+    #
+    # # check if there's a way we could make one of richardson's measurables worse to make the model
+    # # like him better, or vice versa
+    # if negative_counterfactuals[0][1] < richardson:
+    #     # strange_better_richardson is too long
+    #     sbr = negative_counterfactuals[0]
+    #     print("strangely, richardson would be better if his %s was worse (pick %.2f)." % (sbr[0], sbr[1]))
+    #
+    # if positive_counterfactuals[0][1] > richardson:
+    #     swr = positive_counterfactuals[-1]
+    #     print("strangely, richardson would be worse if his %s was better (pick %.2f)." % (swr[0], swr[1]))
 
 
 def preprocess(value, to_categorical, is_output):
@@ -253,13 +253,13 @@ def counterfactuals(model):
              ("height", model.predict(np.array([one_hot(0) +
                                                 [1, 71, 1, 244, 1, 4.43, 1, 40.5, 0, 0, 1, 129, 0, 0, 0, 0]]))[0][0]),
              ("weight", model.predict(np.array([one_hot(0) +
-                                                [1, 76, 1, 190, 1, 4.43, 1, 40.5, 0, 0, 1, 129, 0, 0, 0, 0]]))[0][0]),
+                                                [1, 76, 1, 200, 1, 4.43, 1, 40.5, 0, 0, 1, 129, 0, 0, 0, 0]]))[0][0]),
              ("40 time", model.predict(np.array([one_hot(0) +
                                                  [1, 76, 1, 244, 1, 4.63, 1, 40.5, 0, 0, 1, 129, 0, 0, 0, 0]]))[0][0]),
              ("vert", model.predict(np.array([one_hot(0) +
-                                              [1, 76, 1, 244, 1, 4.43, 1, 36.5, 0, 0, 1, 129, 0, 0, 0, 0]]))[0][0]),
+                                              [1, 76, 1, 244, 1, 4.43, 1, 30, 0, 0, 1, 129, 0, 0, 0, 0]]))[0][0]),
              ("broad", model.predict(np.array([one_hot(0) +
-                                               [1, 76, 1, 244, 1, 4.43, 1, 40.5, 0, 0, 1, 110, 0, 0, 0, 0]]))[0][0])])
+                                               [1, 76, 1, 244, 1, 4.43, 1, 40.5, 0, 0, 1, 70, 0, 0, 0, 0]]))[0][0])])
 
 
 def one_hot(n):
