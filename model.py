@@ -42,19 +42,21 @@ def main():
         test_output.append(player[-1])
 
     input_layer = keras.Input(shape=num_inputs)
-    l1 = keras.layers.Dense(5, activation="relu")
-    l2 = keras.layers.Dense(5, activation="relu")
+    l1 = keras.layers.Dense(10, activation="relu")
+    leaky1 = keras.layers.LeakyReLU()
+    l2 = keras.layers.Dense(10, activation="relu")
+    leaky2 = keras.layers.LeakyReLU()
     output = keras.layers.Dense(1, activation="relu")
-    model = keras.models.Sequential([input_layer, l1, l2, output])
+    model = keras.models.Sequential([input_layer, l1, leaky1, l2, leaky2, output])
     model.summary()
 
-    model.compile(loss=tf.keras.losses.MeanAbsoluteError(), optimizer=keras.optimizers.Adam(learning_rate=.005))
-    model.fit(train_input, train_output, batch_size=7, epochs=2200)
+    model.compile(loss=tf.keras.losses.MeanAbsoluteError(), optimizer=keras.optimizers.Adam(learning_rate=.02))
+    model.fit(train_input, train_output, batch_size=50, epochs=1000)
     model.evaluate(test_input, test_output)
     richardson = model.predict(np.array([[0, 76, 244, 4.43, 40.5, 0, 129, 0, 0]]))[0][0]
 
-    negative_counterfactuals = [("position", model.predict(np.array([[3, 65, 244, 4.43, 40.5, 0, 129, 0, 0]]))[0][0]),
-                                ("height", model.predict(np.array([[0, 65, 244, 4.43, 40.5, 0, 129, 0, 0]]))[0][0]),
+    negative_counterfactuals = [("position", model.predict(np.array([[3, 76, 244, 4.43, 40.5, 0, 129, 0, 0]]))[0][0]),
+                                ("height", model.predict(np.array([[0, 71, 244, 4.43, 40.5, 0, 129, 0, 0]]))[0][0]),
                                 ("weight", model.predict(np.array([[0, 76, 230, 4.43, 40.5, 0, 129, 0, 0]]))[0][0]),
                                 ("40 time", model.predict(np.array([[0, 76, 244, 4.63, 40.5, 0, 129, 0, 0]]))[0][0]),
                                 ("vert", model.predict(np.array([[0, 76, 244, 4.43, 36.5, 0, 129, 0, 0]]))[0][0]),
@@ -66,7 +68,7 @@ def main():
                                 ("vert", model.predict(np.array([[0, 76, 244, 4.43, 44.5, 0, 129, 0, 0]]))[0][0]),
                                 ("bench", model.predict(np.array([[0, 76, 244, 4.43, 40.5, 30, 129, 0, 0]]))[0][0]),
                                 ("broad", model.predict(np.array([[0, 76, 244, 4.43, 40.5, 0, 147, 0, 0]]))[0][0]),
-                                ("3cone", model.predict(np.array([[0, 76, 244, 4.43, 40.5, 0, 129, 6.7, 0]]))[0][0]),
+                                ("3cone", model.predict(np.array([[0, 76, 244, 4.43, 40.5, 0, 129, 7.9, 0]]))[0][0]),
                                 ("shuttle",
                                  model.predict(np.array([[0, 76, 244, 4.43, 40.5, 0, 129, 6.7, 4.29]]))[0][0])]
 
@@ -100,7 +102,7 @@ def main():
               (wr[0][0], wr[0][1], wr[1][0], wr[1][1]))
     if len(wr) == 3:
         print("richardson would be worse if his %s (pick %.2f), his %s (pick %.2f), or his %s (pick %.2f) was worse." %
-              (wr[0][1], wr[0][1], wr[1][0], wr[1][1], wr[2][0], wr[2][1]))
+              (wr[0][0], wr[0][1], wr[1][0], wr[1][1], wr[2][0], wr[2][1]))
 
     br = better_richardson
     if len(br) == 0:
@@ -112,7 +114,7 @@ def main():
               (br[0][0], br[0][1], br[1][0], br[1][1]))
     if len(br) == 3:
         print("richardson would be better if his %s (pick %.2f), his %s (pick %.2f), or his %s (pick %.2f) was better."
-              % (br[0][1], br[0][1], br[1][0], br[1][1], br[2][0], br[2][1]))
+              % (br[0][0], br[0][1], br[1][0], br[1][1], br[2][0], br[2][1]))
 
     # check if there's a way we could make one of richardson's measurables worse to make the model
     # like him better, or vice versa
@@ -138,7 +140,7 @@ def preprocess(value):
         num = '2'
     elif value == 'C':
         num = '3'
-    elif value == 'RB':
+    elif value == 'RB' or value == 'FB' or value == 'HB':
         num = '4'
     elif value == 'TE':
         num = '5'
@@ -164,6 +166,8 @@ def preprocess(value):
         num = '15'
     elif value == 'K':
         num = '16'
+    elif value == 'LS':
+        num = '17'
     elif is_num(value):
         num = value
     elif '/' in value:
