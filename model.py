@@ -4,8 +4,13 @@ import tensorflow as tf
 import keras
 import csv
 import random
+import math
 
-num_inputs = 26
+num_inputs = 34
+epochs = 500
+neurons = [9, 9, 9, 9]
+lr = 0.001
+he_normal = True
 
 
 def main():
@@ -18,9 +23,11 @@ def main():
     for row in reader:
         inputs_outputs.append([])
         for i in range(len(row[1:])):
-            value = row[i+1]
+            value = row[i + 1]
             # for the first value (position), one-hot encode the data
-            inputs_outputs[-1] += preprocess(value, to_categorical=(i == 0))
+            to_categorical = i == 0
+            is_output = i == len(row[1:]) - 1
+            inputs_outputs[-1] += preprocess(value, to_categorical, is_output)
 
     # for i in range(len(inputs_outputs)):
     #     if len(inputs_outputs[i]) != num_inputs+1:
@@ -29,13 +36,30 @@ def main():
 
     train_input, train_output, test_input, test_output = split_train_test(inputs_outputs)
 
-    model = leaky_model()
+    model = keras.models.load_model("model")
+    # model = leaky_model()
+    # layers = [layer for layer in keras.models.load_model("model").layers]
+    # if he_normal:
+    #     initializer = tf.keras.initializers.HeNormal()
+    # else:
+    #     initializer = tf.keras.initializers.GlorotUniform()
+    # new_layer = keras.layers.Dense(3, name="new_layer", activation="relu", kernel_initializer=initializer)
+    # new_leaky = keras.layers.LeakyReLU(name="new_leaky")
+    # layers.insert(-1, new_layer)
+    # layers.insert(-1, new_leaky)
+    # model = keras.models.Sequential(layers)
+    # model.build((None, num_inputs))
     model.summary()
 
-    model.compile(loss=tf.keras.losses.MeanAbsoluteError(), optimizer=keras.optimizers.Adam(learning_rate=.01))
-    model.fit(train_input, train_output, batch_size=20, epochs=4000)
-    model.evaluate(test_input, test_output)
-    richardson_data = np.array([one_hot(0) + [76, 244, 4.43, 40.5, 0, 129, 0, 0]])
+    # lrate_scheduler = keras.callbacks.LearningRateScheduler(step_decay)
+    model.compile(loss=tf.keras.losses.MeanSquaredError(), optimizer=keras.optimizers.Adam(learning_rate=lr))
+    model.fit(train_input, train_output, epochs=epochs)
+    score = model.evaluate(test_input, test_output)
+
+    if score < 6000:
+        model.save("model")
+
+    richardson_data = np.array([one_hot(0) + [1, 76, 1, 244, 1, 4.43, 1, 40.5, 0, 0, 1, 129, 0, 0, 0, 0]])
     richardson = model.predict(richardson_data)[0][0]
     positive_counterfactuals, negative_counterfactuals = counterfactuals(model)
     print("Anthony Richardson prediction: pick " + str(round(richardson)))
@@ -94,7 +118,7 @@ def main():
         print("strangely, richardson would be worse if his %s was better (pick %.2f)." % (swr[0], swr[1]))
 
 
-def preprocess(value, to_categorical):
+def preprocess(value, to_categorical, is_output):
     if value == '':
         rvalue = 0.0
     elif value == 'QB':
@@ -149,6 +173,11 @@ def preprocess(value, to_categorical):
 
     if to_categorical:
         rvalue = one_hot(rvalue)
+    elif not is_output:
+        if rvalue == 0:
+            rvalue = [0, rvalue]
+        else:
+            rvalue = [1, rvalue]
     else:
         rvalue = [rvalue]
 
@@ -183,36 +212,68 @@ def split_train_test(data):
 
 
 def leaky_model():
-    input_layer = keras.Input(shape=num_inputs)
-    l1 = keras.layers.Dense(10, activation="relu")
-    leaky1 = keras.layers.LeakyReLU()
-    l2 = keras.layers.Dense(10, activation="relu")
-    leaky2 = keras.layers.LeakyReLU()
-    output = keras.layers.Dense(1, activation="relu")
-    return keras.models.Sequential([input_layer, l1, leaky1, l2, leaky2, output])
+    layers = [keras.Input(shape=num_inputs)]
+    for i in range(len(neurons)):
+        if he_normal:
+            initializer = tf.keras.initializers.HeNormal()
+        else:
+            initializer = tf.keras.initializers.GlorotUniform()
+        layers.append(keras.layers.Dense(neurons[i], activation="relu", kernel_initializer=initializer))
+        layers.append(keras.layers.LeakyReLU())
+
+    if he_normal:
+        initializer = tf.keras.initializers.HeNormal()
+    else:
+        initializer = tf.keras.initializers.GlorotUniform()
+    layers.append(keras.layers.Dense(1, activation="relu", kernel_initializer=initializer))
+    return keras.models.Sequential(layers)
 
 
 # change the input to the model slightly to see how the result would change
 def counterfactuals(model):
-    return ([("height", model.predict(np.array([one_hot(0)+[84, 244, 4.43, 40.5, 0, 129, 0, 0]]))[0][0]),
-             ("weight", model.predict(np.array([one_hot(0)+[76, 270, 4.43, 40.5, 0, 129, 0, 0]]))[0][0]),
-             ("40 time", model.predict(np.array([one_hot(0)+[76, 244, 4.23, 40.5, 0, 129, 0, 0]]))[0][0]),
-             ("vert", model.predict(np.array([one_hot(0)+[76, 244, 4.43, 44.5, 0, 129, 0, 0]]))[0][0]),
-             ("bench", model.predict(np.array([one_hot(0)+[76, 244, 4.43, 40.5, 20, 129, 0, 0]]))[0][0]),
-             ("broad", model.predict(np.array([one_hot(0)+[76, 244, 4.43, 40.5, 0, 147, 0, 0]]))[0][0]),
-             ("3cone", model.predict(np.array([one_hot(0)+[76, 244, 4.43, 40.5, 0, 129, 7.7, 0]]))[0][0]),
+    return ([("height", model.predict(np.array([one_hot(0) +
+                                                [1, 84, 1, 244, 1, 4.43, 1, 40.5, 0, 0, 1, 129, 0, 0, 0, 0]]))[0][0]),
+             ("weight", model.predict(np.array([one_hot(0) +
+                                                [1, 76, 1, 270, 1, 4.43, 1, 40.5, 0, 0, 1, 129, 0, 0, 0, 0]]))[0][0]),
+             ("40 time", model.predict(np.array([one_hot(0) +
+                                                 [1, 76, 1, 244, 1, 4.23, 1, 40.5, 0, 0, 1, 129, 0, 0, 0, 0]]))[0][0]),
+             ("vert", model.predict(np.array([one_hot(0) +
+                                              [1, 76, 1, 244, 1, 4.43, 1, 44.5, 0, 0, 1, 129, 0, 0, 0, 0]]))[0][0]),
+             ("bench", model.predict(np.array([one_hot(0) +
+                                               [1, 76, 1, 244, 1, 4.43, 1, 40.5, 1, 20, 1, 129, 0, 0, 0, 0]]))[0][0]),
+             ("broad", model.predict(np.array([one_hot(0) +
+                                               [1, 76, 1, 244, 1, 4.43, 1, 40.5, 0, 0, 1, 147, 0, 0, 0, 0]]))[0][0]),
+             ("3cone", model.predict(np.array([one_hot(0) +
+                                               [1, 76, 1, 244, 1, 4.43, 1, 40.5, 0, 0, 1, 129, 1, 7.7, 0, 0]]))[0][0]),
              ("shuttle",
-              model.predict(np.array([one_hot(0)+[76, 244, 4.43, 40.5, 0, 129, 0, 4.5]]))[0][0])],
-            [("position", model.predict(np.array([one_hot(3)+[76, 244, 4.43, 40.5, 0, 129, 0, 0]]))[0][0]),
-             ("height", model.predict(np.array([one_hot(0)+[71, 244, 4.43, 40.5, 0, 129, 0, 0]]))[0][0]),
-             ("weight", model.predict(np.array([one_hot(0)+[76, 230, 4.43, 40.5, 0, 129, 0, 0]]))[0][0]),
-             ("40 time", model.predict(np.array([one_hot(0)+[76, 244, 4.63, 40.5, 0, 129, 0, 0]]))[0][0]),
-             ("vert", model.predict(np.array([one_hot(0)+[76, 244, 4.43, 36.5, 0, 129, 0, 0]]))[0][0]),
-             ("broad", model.predict(np.array([one_hot(0)+[76, 244, 4.43, 40.5, 0, 110, 0, 0]]))[0][0])])
+              model.predict(np.array([one_hot(0) +
+                                      [1, 76, 1, 244, 1, 4.43, 1, 40.5, 0, 0, 1, 129, 0, 0, 1, 4.5]]))[0][0])],
+            [("position", model.predict(np.array([one_hot(3) +
+                                                  [1, 76, 1, 244, 1, 4.43, 1, 40.5, 0, 0, 1, 129, 0, 0, 0, 0]]))[0][0]),
+             ("height", model.predict(np.array([one_hot(0) +
+                                                [1, 71, 1, 244, 1, 4.43, 1, 40.5, 0, 0, 1, 129, 0, 0, 0, 0]]))[0][0]),
+             ("weight", model.predict(np.array([one_hot(0) +
+                                                [1, 76, 1, 190, 1, 4.43, 1, 40.5, 0, 0, 1, 129, 0, 0, 0, 0]]))[0][0]),
+             ("40 time", model.predict(np.array([one_hot(0) +
+                                                 [1, 76, 1, 244, 1, 4.63, 1, 40.5, 0, 0, 1, 129, 0, 0, 0, 0]]))[0][0]),
+             ("vert", model.predict(np.array([one_hot(0) +
+                                              [1, 76, 1, 244, 1, 4.43, 1, 36.5, 0, 0, 1, 129, 0, 0, 0, 0]]))[0][0]),
+             ("broad", model.predict(np.array([one_hot(0) +
+                                               [1, 76, 1, 244, 1, 4.43, 1, 40.5, 0, 0, 1, 110, 0, 0, 0, 0]]))[0][0])])
 
 
 def one_hot(n):
     return keras.utils.to_categorical(n, num_classes=18).tolist()
+
+
+def step_decay(epoch):
+    initial_lrate = 0.05
+    drop = 0.8
+    epochs_drop = (1.0 / math.log(0.00001 / initial_lrate, drop)) * epochs  # the learning rate should end at 0.00001
+    lrate = initial_lrate * math.pow(drop,
+                                     math.floor((1 + epoch) / epochs_drop))
+    return lrate
+
 
 # return whether a string is numeric
 def is_num(value):
