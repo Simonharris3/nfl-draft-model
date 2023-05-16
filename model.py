@@ -7,15 +7,32 @@ import random
 import math
 
 num_inputs = 34
-epochs = 70
-neurons = [9, 9, 9, 9]
+epochs = 200
+neurons = [9, 7, 7, 5, 5, 3, 3, 1]
 lr = 0.001
 he_normal = True
 
 
 def main():
-    file = open("sportsref_download.csv", mode='r')
-    reader = csv.reader(file)
+    base_file = open("sportsref_download.csv", mode='r')
+    # base_file = open("sportsref_download_with_pff.csv", mode='r')
+    # def_files = []
+    # for i in range(5):
+    #     def_files.append(open("defense_summary_201" + str(i+6) + ".csv", mode='r'))
+    # for i in range(5):
+    #     reader = csv.reader(def_files[i])
+    #     next(reader)
+    # ol_files = []
+    # for i in range(5):
+    #     ol_files.append(open("offense_blocking_201" + str(i+6) + ".csv", mode='r'))
+    # rb_files = []
+    # for i in range(5):
+    #     rb_files.append(open("rushing_summary_201" + str(i+6) + ".csv", mode='r'))
+    # wr_files = []
+    # for i in range(5):
+    #     wr_files.append(open("receiving_summary_201" + str(i+6) + ".csv", mode='r'))
+
+    reader = csv.reader(base_file)
     next(reader)
 
     inputs_outputs = []
@@ -36,18 +53,33 @@ def main():
 
     train_input, train_output, test_input, test_output = split_train_test(inputs_outputs)
 
-    model = keras.models.load_model("model")
-    # layers = [layer for layer in keras.models.load_model("model").layers]
+    # model = keras.models.load_model("model")
+    layers = [layer for layer in keras.models.load_model("model").layers]
     # if he_normal:
-    #     initializer = tf.keras.initializers.HeNormal()
+    #     initializer = keras.initializers.HeNormal()
     # else:
-    #     initializer = tf.keras.initializers.GlorotUniform()
-    # new_layer = keras.layers.Dense(3, name="layer_5", activation="relu", kernel_initializer=initializer)
-    # new_leaky = keras.layers.LeakyReLU(name="leky_2")
-    # layers.insert(-1, new_layer)
-    # layers.insert(-1, new_leaky)
-    # model = keras.models.Sequential(layers)
-    # model.build((None, num_inputs))
+    #     initializer = keras.initializers.GlorotUniform()
+    # input_layer = keras.Input(shape=(num_inputs,))
+    # l1 = keras.layers.Dense(9, activation="relu", kernel_initializer=initializer)
+    # leaky1 = keras.layers.LeakyReLU()
+    # l2 = keras.layers.Dense(7, activation="relu", kernel_initializer=initializer)
+    # leaky2 = keras.layers.LeakyReLU()
+    # l3 = keras.layers.Dense(7, activation="relu", kernel_initializer=initializer)
+    # leaky3 = keras.layers.LeakyReLU()
+    # l4 = keras.layers.Dense(5, activation="relu", kernel_initializer=initializer)
+    # leaky4 = keras.layers.LeakyReLU()
+    # l5 = keras.layers.Dense(5, activation="relu", kernel_initializer=initializer)
+    # leaky5 = keras.layers.LeakyReLU()
+    # l6 = keras.layers.Dense(3, activation="relu", kernel_initializer=initializer)
+    # leaky6 = keras.layers.LeakyReLU()
+    # l7 = keras.layers.Dense(3, activation="relu", kernel_initializer=initializer)
+    # leaky7 = keras.layers.LeakyReLU()
+    # l8 = keras.layers.Dense(1, activation="relu", kernel_initializer=initializer)
+    # layers = [input_layer, l1, leaky1, l2, leaky2, l3, leaky3, l4, leaky4, l5, leaky5, l6, leaky6, l7, leaky7, l8]
+    # layers.insert(1, keras.layers.Dense(9, activation="relu", kernel_initializer=initializer, name="new_dense"))
+    # layers.insert(1, keras.layers.LeakyReLU(name="new_leaky"))
+    model = keras.models.Sequential(layers)
+    model.build((None, num_inputs))
     model.summary()
 
     # lrate_scheduler = keras.callbacks.LearningRateScheduler(step_decay)
@@ -55,7 +87,7 @@ def main():
     model.fit(train_input, train_output, epochs=epochs)
     score = model.evaluate(test_input, test_output)
 
-    if score < 4900:
+    if score < 5407:
         model.save("model")
         print("model saved!")
 
@@ -82,29 +114,18 @@ def main():
     #         i -= 1
     #     i += 1
     #
-    # wr = worse_richardson
-    # if len(wr) == 0:
-    #     print("richardson can't get any worse!")
-    # if len(wr) == 1:
-    #     print("richardson would only be worse if his %s was worse (pick %.2f)." % (wr[0][0], wr[0][1]))
-    # if len(wr) == 2:
-    #     print("richardson would be worse if his %s (pick %.2f) or his %s (pick %.2f) was worse." %
-    #           (wr[0][0], wr[0][1], wr[1][0], wr[1][1]))
-    # if len(wr) == 3:
-    #     print("richardson would be worse if his %s (pick %.2f), his %s (pick %.2f), or his %s (pick %.2f) was worse." %
-    #           (wr[0][0], wr[0][1], wr[1][0], wr[1][1], wr[2][0], wr[2][1]))
+    # wr = worse_richardson if len(wr) == 0: print("richardson can't get any worse!") if len(wr) == 1: print(
+    # "richardson would only be worse if his %s was worse (pick %.2f)." % (wr[0][0], wr[0][1])) if len(wr) == 2:
+    # print("richardson would be worse if his %s (pick %.2f) or his %s (pick %.2f) was worse." % (wr[0][0], wr[0][1],
+    # wr[1][0], wr[1][1])) if len(wr) == 3: print("richardson would be worse if his %s (pick %.2f), his %s (pick
+    # %.2f), or his %s (pick %.2f) was worse." % (wr[0][0], wr[0][1], wr[1][0], wr[1][1], wr[2][0], wr[2][1]))
     #
-    # br = better_richardson
-    # if len(br) == 0:
-    #     print("richardson can't get any better!")
-    # if len(br) == 1:
-    #     print("richardson would only be better if his %s was better (pick %.2f)." % (br[0][0], br[0][1]))
-    # if len(br) == 2:
-    #     print("richardson would be better if his %s (pick %.2f) or his %s (pick %.2f) was better." %
-    #           (br[0][0], br[0][1], br[1][0], br[1][1]))
-    # if len(br) == 3:
-    #     print("richardson would be better if his %s (pick %.2f), his %s (pick %.2f), or his %s (pick %.2f) was better."
-    #           % (br[0][0], br[0][1], br[1][0], br[1][1], br[2][0], br[2][1]))
+    # br = better_richardson if len(br) == 0: print("richardson can't get any better!") if len(br) == 1: print(
+    # "richardson would only be better if his %s was better (pick %.2f)." % (br[0][0], br[0][1])) if len(br) == 2:
+    # print("richardson would be better if his %s (pick %.2f) or his %s (pick %.2f) was better." % (br[0][0],
+    # br[0][1], br[1][0], br[1][1])) if len(br) == 3: print("richardson would be better if his %s (pick %.2f),
+    # his %s (pick %.2f), or his %s (pick %.2f) was better." % (br[0][0], br[0][1], br[1][0], br[1][1], br[2][0],
+    # br[2][1]))
     #
     # # check if there's a way we could make one of richardson's measurables worse to make the model
     # # like him better, or vice versa
@@ -164,8 +185,8 @@ def preprocess(value, to_categorical, is_output):
         # find the first letter in the text (should be "rd" or "st" or "nd" or "th")
         ind = re.search("[a-zA-Z]", pick_num[2]).span(0)[0]
 
-        assert (pick_num[2][3:5] == "rd" or pick_num[2][3:5] == "st" or pick_num[2][3:5] == "nd" or
-                pick_num[2][3:5] == "th", "value: " + pick_num[2][3:4])
+        # assert (pick_num[2][3:5] == "rd" or pick_num[2][3:5] == "st" or pick_num[2][3:5] == "nd" or
+        #         pick_num[2][3:5] == "th", "value: " + pick_num[2][3:4])
 
         rvalue = float(pick_num[2][:ind])
     else:
