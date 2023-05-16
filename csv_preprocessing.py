@@ -67,9 +67,10 @@ def merge_data():
             base_data[-1].append(datum)
 
     base_data = find_matches("defense_summary", base_data)
-    base_data = find_matches("offense_blocking", base_data)
+    base_data = find_matches("passing_summary", base_data)
     base_data = find_matches("rushing_summary", base_data)
     base_data = find_matches("receiving_summary", base_data)
+    base_data = find_matches("offense_blocking", base_data)
 
     # with open("sportsref_download_with_pff.csv", mode='w', newline='') as file:
     #     writer = csv.writer(file)
@@ -96,11 +97,14 @@ def find_matches(file_name, base_data):
         input_snaps_index = 31
     elif file_name == "offense_blocking":
         input_grade_index = 8
-        input_snaps_index = 20
+        input_snaps_index = 24
     elif file_name == "rushing_summary":
         input_grade_index = 23
     elif file_name == "receiving_summary":
-        input_grade_index = 18
+        input_grade_index = 19
+        input_snaps_index = 28
+    elif file_name == "passing_summary":
+        input_grade_index = 23
         input_snaps_index = 28
     else:
         raise ValueError("unknown file name: " + file_name)
@@ -113,7 +117,8 @@ def find_matches(file_name, base_data):
         for row in reader:
             for base_index in range(len(base_data)):
                 # if the name and position match
-                if row[0] == base_data[base_index][0] and row[2] == base_data[base_index][1]:
+
+                if row[0] == base_data[base_index][0] and same_pos(row[2], base_data[base_index][1]):
                     # find where games played and the grade should be added for the current year
                     output_snaps_index = 11 + 2 * (5 - year_index)
                     output_grade_index = output_snaps_index + 1
@@ -124,32 +129,69 @@ def find_matches(file_name, base_data):
 
                     # for rbs the snaps count isn't as clean, so we have to add 2 values
                     if input_snaps_index == -1:
-                        snaps = row[rb_snap_indices[0]] + row[rb_snap_indices[1]]
+                        snaps = float(row[rb_snap_indices[0]]) + float(row[rb_snap_indices[1]])
                     else:
-                        snaps = row[input_snaps_index]
+                        snaps = float(row[input_snaps_index])
 
-                    # if there's already data there, that means the player has been counted as a different position
-                    # in that case, we go with the position where the player had more snaps
-                    if base_data[base_index][output_snaps_index] == "":
+                    player_data = base_data[base_index]
+                    # if there's no data there, we insert the pff grade and snap count into the appropriate place
+                    if player_data[output_snaps_index] == "":
                         base_data[base_index][output_snaps_index] = snaps
                         base_data[base_index][output_grade_index] = row[input_grade_index]
-
-                        if len(ex_output) < 3:
-                            ex_output.append(base_data[base_index])
                     else:
-                        if base_data[base_index][output_snaps_index] > snaps:
-                            base_data[base_index][output_snaps_index] = snaps
-                            base_data[base_index][output_grade_index] = row[input_grade_index]
+                        # if there's already data there, we have to determine which data to use. first, we determine
+                        # whether a player is on offense or defense, and make sure the grade is derived from the
+                        # appropriate file. if offense, the snap count should come from the blocking file if possible.
+                        if is_offense(row[2]):
+                            if file_name == "offense_blocking":
+                                base_data[base_index][output_snaps_index] = snaps
+                                base_data[base_index][output_grade_index] = row[input_grade_index]
+                            else:
+                                if (row[2] == 'QB' and file_name == 'passing_summary') or \
+                                        (row[2] == 'WR' and file_name == 'receiving_summary') or \
+                                        (same_pos(row[2], 'RB') and file_name == "rushing_summary"):
+                                    base_data[base_index][output_snaps_index] = snaps
+                                    base_data[base_index][output_grade_index] = row[input_grade_index]
+                            # otherwise, we go with the data that better represents the players position.
+                        else:
+                            if file_name == "defense_summary":
+                                base_data[base_index][output_snaps_index] = snaps
+                                base_data[base_index][output_grade_index] = row[input_grade_index]
+                            # for defensive positions, we only get the data from the defense
+
+                    # if len(ex_output) < 5:
+                    #     ex_output.append(base_data[base_index][0:2] + base_data[base_index][11:])
 
     for i in range(6):
         files[i].close()
 
-    for i in range(3):
+    print(file_name)
+    for i in range(len(ex_output)):
         if i < len(ex_output):
             print(ex_output[i])
 
     print("\n")
     return base_data
+
+
+# returns true if the 2 given positions are considered the same position
+def same_pos(pos1, pos2):
+    return pos1 == pos2 or \
+        (pos1 == "OL" and (pos2 == 'OT' or pos2 == 'OG' or pos2 == 'C')) or \
+        (pos2 == 'OL' and (pos1 == 'OT' or pos1 == 'OG' or pos1 == 'C')) or \
+        (pos1 == 'RB' and (pos2 == 'HB' or pos2 == 'FB')) or \
+        (pos2 == 'RB' and (pos1 == 'HB' or pos1 == 'FB')) or \
+        (pos1 == 'DL' and (pos2 == 'DT' or pos2 == 'EDGE' or pos2 == 'DE' or pos2 == 'DL')) or \
+        (pos2 == 'DL' and (pos1 == 'DT' or pos1 == 'EDGE' or pos1 == 'DE' or pos1 == 'DL')) or \
+        (pos1 == 'EDGE' and (pos2 == 'OLB' or pos2 == 'DE')) or (pos2 == 'EDGE' and (pos1 == 'OLB' or pos1 == 'DE')) \
+        or (pos1 == 'OLB' and pos2 == 'LB') or (pos2 == 'LB' and pos1 == 'OLB') or \
+        (pos1 == 'DB' and (pos2 == 'S' or pos2 == 'CB')) or (pos2 == 'DB' and (pos1 == 'S' or pos1 == 'CB'))
+
+
+# returns true if the given position is an offensive position
+def is_offense(pos):
+    return pos == 'QB' or pos == 'OL' or pos == 'OT' or pos == 'OG' or pos == 'C' \
+        or pos == 'RB' or pos == 'TE' or pos == 'WR'
 
 
 def nums_to_letters(value):
