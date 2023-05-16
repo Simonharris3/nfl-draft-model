@@ -7,7 +7,7 @@ import random
 import math
 
 num_inputs = 46
-epochs = 50
+epochs = 300
 neurons = [14, 12, 10, 8, 6, 4, 2, 1]
 lr = 0.001
 he_normal = True
@@ -62,82 +62,91 @@ def main():
 
     train_input, train_output, test_input, test_output = split_train_test(inputs_outputs)
 
-    # model = keras.models.load_model("model")
-    layers = [layer for layer in keras.models.load_model("model").layers]
-    if he_normal:
-        initializer = keras.initializers.HeNormal()
-    else:
-        initializer = keras.initializers.GlorotUniform()
-
-    layers = []
-    # # the neurons list maps out how many neurons should be in each layer
-    for i in range(len(neurons)):
-        layers.append(keras.layers.Dense(neurons[i], activation="relu", kernel_initializer=initializer))
-        layers.append(keras.layers.LeakyReLU())
+    model = keras.models.load_model("model")
+    # layers = [layer for layer in keras.models.load_model("model").layers]
+    # if he_normal:
+    #     initializer = keras.initializers.HeNormal()
+    # else:
+    #     initializer = keras.initializers.GlorotUniform()
+    #
+    # layers = []
+    # # # the neurons list maps out how many neurons should be in each layer
+    # for i in range(len(neurons)):
+    #     layers.append(keras.layers.Dense(neurons[i], activation="relu", kernel_initializer=initializer))
+    #     layers.append(keras.layers.LeakyReLU())
 
     # layers.insert(1, keras.layers.Dense(9, activation="relu", kernel_initializer=initializer, name="new_dense"))
     # layers.insert(1, keras.layers.LeakyReLU(name="new_leaky"))
-    model = keras.models.Sequential(layers)
+    # model = keras.models.Sequential(layers)
     model.build((None, num_inputs))
     model.summary()
 
     # lrate_scheduler = keras.callbacks.LearningRateScheduler(step_decay)
-    model.compile(loss=tf.keras.losses.MeanSquaredError(), optimizer=keras.optimizers.Adam(learning_rate=lr))
+    model.compile(loss=tf.keras.losses.MeanAbsoluteError(), optimizer=keras.optimizers.Adam(learning_rate=lr))
     model.fit(train_input, train_output, epochs=epochs)
     score = model.evaluate(test_input, test_output)
 
-    if score < 7000:
+    if score < 5200:
         model.save("model")
         print("model saved!")
 
-    richardson_data = np.array([one_hot(0) + [1, 76, 1, 244, 1, 4.43, 1, 40.5, 0, 0, 1, 129, 0, 0, 0, 0, 767, 80.3, 192, 74.8, 14, 65.5, 0, 0, 0, 0, 0, 0]])
+    richardson_data = np.array([one_hot(0) + [1, 76, 1, 244, 1, 4.43, 1, 40.5, 0, 0, 1, 129, 0, 0, 0, 0, 767, 80.3, 192,
+                                              74.8, 14, 65.5, 0, 0, 0, 0, 0, 0]])
     richardson_prediction = model.predict(richardson_data)[0][0]
-    bad_qb_data = np.array([one_hot(0) + [1, 50, 1, 150, 1, 5, 1, 32, 1, 12, 1, 90, 1, 7.9, 1, 5, 767, 20, 900, 25, 900, 30, 900, 35, 900, 40, 900, 45]])
+    bad_qb_data = np.array([one_hot(0) + [1, 50, 1, 150, 1, 5, 1, 32, 1, 12, 1, 90, 1, 7.9, 1, 5, 767, 20, 900, 25, 900,
+                                          30, 0, 0, 0, 0, 0, 0]])
+    good_qb_data = np.array(
+        [one_hot(0) + [1, 76, 1, 244, 1, 4.43, 1, 40.5, 0, 0, 1, 129, 1, 6.8, 1, 3.9, 767, 90.3, 700,
+                       87.2, 900, 97.6, 800, 88.5, 900, 99.7, 900, 94.9]])
     bad_qb_prediction = model.predict(bad_qb_data)[0][0]
+    good_qb_prediction = model.predict(good_qb_data)[0][0]
     positive_counterfactuals, negative_counterfactuals = counterfactuals(model, richardson_data)
+    print(positive_counterfactuals)
+    print(negative_counterfactuals)
     print("Anthony Richardson prediction: pick " + str(round(richardson_prediction)))
     print("bad qb prediction: pick " + str(round(bad_qb_prediction)))
+    print("good qb prediction: pick " + str(round(good_qb_prediction)))
 
     negative_counterfactuals.sort(key=lambda x: x[1])  # sort by the model's prediction
     positive_counterfactuals.sort(key=lambda x: x[1])
-    worse_richardson = negative_counterfactuals[-3:]
-    better_richardson = positive_counterfactuals[:3]
+    wsr = []
+    wlr = []
+    bsr = []
+    blr = []
 
-    i = 0
-    while i < len(worse_richardson):
-        if worse_richardson[i][1] <= richardson_prediction:
-            worse_richardson.pop(i)
+    for i in range(len(negative_counterfactuals)):
+        if negative_counterfactuals[i][1] <= richardson_prediction:
+            if len(bsr) < 4:
+                bsr.append(negative_counterfactuals[i])
+        elif len(wsr) < 4:
+            wsr.append(negative_counterfactuals[i])
+
+    while i < len(br):
+        if br[i][1] >= richardson_prediction:
+            br.pop(i)
             i -= 1
         i += 1
 
-    while i < len(better_richardson):
-        if better_richardson[i][1] >= richardson_prediction:
-            better_richardson.pop(i)
-            i -= 1
-        i += 1
-
-    wr = worse_richardson
     if len(wr) == 0:
         print("richardson can't get any worse!")
     if len(wr) == 1:
         print("richardson would only be worse if his %s was worse (pick %.2f)." % (wr[0][0], wr[0][1]))
     if len(wr) == 2:
-        print("richardson would be worse if his %s (pick %.2f) or his %s (pick %.2f) was worse." % (wr[0][0], wr[0][1],
+        print("richardson would be worse if his %s (pick %.2f) or his %s (pick %.2f) was lower." % (wr[0][0], wr[0][1],
                                                                                                     wr[1][0], wr[1][1]))
     if len(wr) == 3:
-        print("richardson would be worse if his %s (pick %.2f), his %s (pick %.2f), or his %s (pick %.2f) was worse." %
+        print("richardson would be worse if his %s (pick %.2f), his %s (pick %.2f), or his %s (pick %.2f) was lower." %
               (wr[0][0], wr[0][1], wr[1][0], wr[1][1], wr[2][0], wr[2][1]))
 
-    br = better_richardson
     if len(br) == 0:
         print("richardson can't get any better!")
     if len(br) == 1:
-        print("richardson would only be better if his %s was better (pick %.2f)." % (br[0][0], br[0][1]))
+        print("richardson would only be better if his %s was higher (pick %.2f)." % (br[0][0], br[0][1]))
     if len(br) == 2:
-        print("richardson would be better if his %s (pick %.2f) or his %s (pick %.2f) was better." % (br[0][0],
-    br[0][1], br[1][0], br[1][1]))
+        print("richardson would be better if his %s (pick %.2f) or his %s (pick %.2f) was higher." %
+              (br[0][0], br[0][1], br[1][0], br[1][1]))
     if len(br) == 3:
-        print("richardson would be better if his %s (pick %.2f), his %s (pick %.2f), or his %s (pick %.2f) was better."
+        print("richardson would be better if his %s (pick %.2f), his %s (pick %.2f), or his %s (pick %.2f) was higher."
               % (br[0][0], br[0][1], br[1][0], br[1][1], br[2][0], br[2][1]))
 
     # check if there's a way we could make one of richardson's measurables worse to make the model
@@ -145,11 +154,11 @@ def main():
     if negative_counterfactuals[0][1] < richardson_prediction:
         # strange_better_richardson is too long
         sbr = negative_counterfactuals[0]
-        print("strangely, richardson would be better if his %s was worse (pick %.2f)." % (sbr[0], sbr[1]))
+        print("richardson would be better if his %s was lower (pick %.2f)." % (sbr[0], sbr[1]))
 
     if positive_counterfactuals[0][1] > richardson_prediction:
         swr = positive_counterfactuals[-1]
-        print("strangely, richardson would be worse if his %s was better (pick %.2f)." % (swr[0], swr[1]))
+        print("richardson would be worse if his %s was higher (pick %.2f)." % (swr[0], swr[1]))
 
 
 def preprocess(value, to_categorical, is_combine):
@@ -242,14 +251,64 @@ def counterfactuals(model, original):
     positive_cfs = []
     negative_cfs = []
 
-    for i in range(original.size - num_classes):
+    i = num_classes + 1
+    while i < original.size:
         modified = original
-        modified[0, i+num_classes] += 10
-        positive_cfs.append(model.predict(np.array(modified))[0][0])
-        modified[0, i+num_classes] -= 20
-        negative_cfs.append(model.predict(np.array(modified))[0][0])
+        modified[0, i] += 10
+        positive_cfs.append((cf_datum(i-num_classes), model.predict(np.array(modified))[0][0]))
+        modified[0, i] -= 20
+        negative_cfs.append((cf_datum(i-num_classes), model.predict(np.array(modified))[0][0]))
+
+        if i < 33:
+            i += 2
+        else:
+            i += 1
 
     return positive_cfs, negative_cfs
+
+
+def cf_datum(i):
+    if i == 1:
+        return "height"
+    if i == 3:
+        return "weight"
+    if i == 5:
+        return "40 time"
+    if i == 7:
+        return "vert"
+    if i == 9:
+        return "bench"
+    if i == 11:
+        return "broad"
+    if i == 13:
+        return "3cone"
+    if i == 15:
+        return "shuttle"
+    if i == 16:
+        return "2021 snaps"
+    if i == 17:
+        return "2021 grade"
+    if i == 18:
+        return "2020 snaps"
+    if i == 19:
+        return "2020 grade"
+    if i == 20:
+        return "2019 snaps"
+    if i == 21:
+        return "2019 grade"
+    if i == 22:
+        return "2018 snaps"
+    if i == 23:
+        return "2018 grade"
+    if i == 24:
+        return "2017 snaps"
+    if i == 25:
+        return "2017 grade"
+    if i == 26:
+        return "2016 snaps"
+    if i == 27:
+        return "2016 grade"
+    return "idek man"
 
 
 def one_hot(n):
