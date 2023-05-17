@@ -3,39 +3,29 @@ import re
 import numpy as np
 import tensorflow as tf
 import keras
-from keras import initializers, backend
+from keras import initializers
 import csv
 import random
 import math
 
-num_inputs = 38
-epochs = 50
-neurons = [14, 12, 10, 8, 6, 4, 2, 1]
+num_inputs = 40
+epochs = 60
+neurons = [14, 14, 12, 10, 8, 6, 4, 2, 1]
 lr = 0.001
+train_percentage = .8
 he_normal = True
 position_dict = {'QB': 0.0, 'OT': 1.0, 'OL': 2.0, 'OG': 2.0, 'C': 3.0, 'RB': 4.0, 'HB': 4.0, 'FB': 4.0, 'TE': 5.0,
                  'WR': 6.0, 'DT': 7.0, 'DL': 8.0, 'DE': 9.0, 'EDGE': 9.0, 'OLB': 10.0, 'LB': 11.0, 'CB': 12.0,
                  'DB': 13.0, 'S': 14.0, 'P': 15.0, 'K': 16.0, 'LS': 17.0}
+num_positions = 18
+num_combine_data = 8
+row_length = 21
+min_snaps = 100
+load_model = False
 
 
 def main():
     base_file = open("sportsref_download_with_pff.csv", mode='r')
-    # base_file = open("sportsref_download_with_pff.csv", mode='r')
-    # def_files = []
-    # for i in range(5):
-    #     def_files.append(open("defense_summary_201" + str(i+6) + ".csv", mode='r'))
-    # for i in range(5):
-    #     reader = csv.reader(def_files[i])
-    #     next(reader)
-    # ol_files = []
-    # for i in range(5):
-    #     ol_files.append(open("offense_blocking_201" + str(i+6) + ".csv", mode='r'))
-    # rb_files = []
-    # for i in range(5):
-    #     rb_files.append(open("rushing_summary_201" + str(i+6) + ".csv", mode='r'))
-    # wr_files = []
-    # for i in range(5):
-    #     wr_files.append(open("receiving_summary_201" + str(i+6) + ".csv", mode='r'))
 
     reader = csv.reader(base_file)
     next(reader)
@@ -44,45 +34,27 @@ def main():
     inputs_outputs = []
 
     for row in reader:
-        inputs_outputs.append([])
+        inputs_outputs.append(preprocess_row(row))
         # don't count the first column (player name) or the last column (nfl pff grade which currently isn't being used)
-        for i in range(len(row[1:-1])):
-            value = row[i + 1]
-            # for the first value (position), set this value to true so
-            # the preprocess function knows to one-hot encode the data
-            to_categorical = i == 0
-            # the combine data is everything before the 9th value
-            is_combine = i < 9
-            # preprocess the data point, and tack it onto the end of the list
-            # (which includes all the data for the current player)
-            inputs_outputs[-1] += preprocess(value, to_categorical, is_combine)
-
-    # for i in range(len(inputs_outputs)):
-    #     if len(inputs_outputs[i]) != num_inputs+1:
-    #         print(len(inputs_outputs[i]))
-    #         raise ValueError("Expected length of " + str(num_inputs+1) + ", got: " + str(inputs_outputs[i]))
 
     train_input, train_output, test_input, test_output = split_train_test(inputs_outputs)
 
-    model = keras.models.load_model("model")
-    # layers = [layer for layer in keras.models.load_model("model").layers]
+    if load_model:
+        model = keras.models.load_model("model")
 
-    # if he_normal:
-    #     initializer = keras.initializers.HeNormal()
-    # else:
-    #     initializer = keras.initializers.GlorotUniform()
+    else:
+        if he_normal:
+            initializer = initializers.HeNormal()
+        else:
+            initializer = initializers.GlorotUniform()
 
-    # layers = []
-    # # the neurons list maps out how many neurons should be in each layer
-    # for i in range(len(neurons)):
-    #     layers.append(keras.layers.Dense(neurons[i], activation="relu", kernel_initializer=initializer))
-    #     layers.append(keras.layers.LeakyReLU())
+        layers = []
+        # the neurons list maps out how many neurons should be in each layer
+        for i in range(len(neurons)):
+            layers.append(keras.layers.Dense(neurons[i], activation="relu", kernel_initializer=initializer))
+            layers.append(keras.layers.LeakyReLU())
 
-    # layers.append(keras.layers.Dense(1, activation="relu",
-    #                                  kernel_initializer=initializer, name="new_dense"))
-    # layers.insert(1, keras.layers.LeakyReLU(name="new_leaky"))
-
-    # model = keras.models.Sequential(layers)
+        model = keras.models.Sequential(layers)
 
     model.build((None, num_inputs))
     model.summary()
@@ -92,80 +64,134 @@ def main():
     model.fit(train_input, train_output, epochs=epochs)
     score = model.evaluate(test_input, test_output)
 
-    if score < 61:
+    if score < 65:
         model.save("model")
         print("model saved!")
 
-    richardson_data = np.array([one_hot(0) + [76, 244, 4.43, 40.5, 0, 129, 0, 0, 767, 80.3, 192,
-                                              74.8, 14, 65.5, 0, 0, 0, 0, 0, 0]])
-    richardson_prediction = model.predict(richardson_data)[0][0]
-    bad_qb_data = np.array([one_hot(0) + [67, 150, 4.9, 32, 14, 105, 7.7, 4.8, 767, 30, 900, 35, 900,
-                                          40, 0, 0, 0, 0, 0, 0]])
-    good_qb_data = np.array(
-        [one_hot(0) + [78, 254, 4.33, 41, 20, 131, 6.8, 3.9, 800, 90.3, 700,
-                       87.2, 900, 97.6, 800, 88.5, 0, 0, 0, 0]])
-    bad_qb_prediction = model.predict(bad_qb_data)[0][0]
-    good_qb_prediction = model.predict(good_qb_data)[0][0]
-    branch_data = np.array([one_hot(position_dict['S']) + [72, 190, 4.58, 34.5, 14, 125, 0, 0, 768, 89.5, 624, 76.6, 290,
-                                          72.4, 0, 0, 0, 0, 0, 0]])
-    branch_prediction = model.predict(branch_data)[0][0]
-    higher_cfs, lower_cfs = counterfactuals(model, richardson_data)
+    test_cases = []
+
+    richardson_data = ['richardson', 'QB', 76, 244, 4.43, 40.5, 0, 129, 0, 0,
+                       767, 80.3, 192, 74.8, 14, 65.5, 0, 0, 0, 0, 0, 0, 81]
+    test_cases.append(preprocess_row(richardson_data))
+
+    bad_qb_data = ['bad', 'QB', 67, 150, 4.9, 32, 14, 105, 7.7, 4.8,
+                   767, 30, 900, 35, 900, 40, 0, 0, 0, 0, 0, 0, 81]
+    test_cases.append(preprocess_row(bad_qb_data))
+
+    good_qb_data = ['good', 'QB', 78, 254, 4.33, 41, 20, 131, 6.8, 3.9,
+                    800, 90.3, 700, 87.2, 900, 97.6, 800, 96.5, 0, 0, 0, 0, 81]
+    test_cases.append(preprocess_row(good_qb_data))
+
+    branch_data = ['branch', 'S', 72, 190, 4.58, 34.5, 14, 125, 0, 0, 768,
+                   89.5, 624, 76.6, 290, 72.4, 0, 0, 0, 0, 0, 0, 81]
+    test_cases.append(preprocess_row(branch_data))
+
+    lawrence_data = ['lawrence', 'QB', 77, 213, 0, 0, 0, 0, 0, 0, 0, 0,
+                     624, 91.1, 841, 91.1, 776, 90.7, 0, 0, 0, 0, 81]
+    test_cases.append(preprocess_row(lawrence_data))
+
+    predictions = model.predict(np.asarray(test_cases))
+    richardson_prediction = predictions[0][0]
+
     print("Anthony Richardson prediction: pick " + str(richardson_prediction))
-    print("bad qb prediction: pick " + str(bad_qb_prediction))
-    print("good qb prediction: pick " + str(good_qb_prediction))
-    print("Brian Branch prediction: pick " + str(branch_prediction) + "\n")
+    print("bad qb prediction: pick " + str(predictions[1][0]))
+    print("good qb prediction: pick " + str(predictions[2][0]))
+    print("Brian Branch prediction: pick " + str(predictions[3][0]))
+    print("Trevor Lawrence prediction: pick " + str(predictions[4][0]) + '\n')
+
+    higher_cfs, lower_cfs, no_data_cfs = counterfactuals(model, np.asarray([preprocess_row(richardson_data)]))
 
     lower_cfs.sort(key=lambda x: x[1])  # sort by the model's prediction
     higher_cfs.sort(key=lambda x: x[1])
+    no_data_cfs.sort(key=lambda x: x[1])
     # worse lower richardson, worse higher richardson, etc
     wlr = []
-    whr = []
     blr = []
-    bhr = []
 
     for i in range(len(lower_cfs)):
-        if lower_cfs[i][1] <= richardson_prediction:
+        if lower_cfs[i][1] < richardson_prediction - 5:
             blr.append(lower_cfs[i])
-        else:
+        elif lower_cfs[i][1] > richardson_prediction + 5:
             wlr.append(lower_cfs[i])
 
+    whr = []
+    bhr = []
+
     for i in range(len(higher_cfs)):
-        if higher_cfs[i][1] <= richardson_prediction:
+        if higher_cfs[i][1] < richardson_prediction - 5:
             bhr.append(higher_cfs[i])
-        else:
+        elif higher_cfs[i][1] > richardson_prediction + 5:
             whr.append(higher_cfs[i])
+
+    wnr = []
+    bnr = []
+
+    for i in range(len(no_data_cfs)):
+        if no_data_cfs[i][1] < richardson_prediction - 5:
+            wnr.append(no_data_cfs[i])
+        elif no_data_cfs[i][1] > richardson_prediction + 5:
+            bnr.append(no_data_cfs[i])
 
     # take only the most extreme changes in richardson's pick number
     wlr = wlr[-3:]
     whr = whr[-3:]
     blr = blr[:3]
     bhr = bhr[:3]
-    if len(wlr) == 0 and len(whr) == 0:
-        print("richardson can't get any worse!")
-    else:
-        print("richardson would be worse if the following attributes were higher: ")
-        for i in range(len(whr)):
-            print("%s (pick %.1f)" % (whr[i][0], whr[i][1]))
-        print("\nrichardson would be worse if the following attributes were lower: ")
-        for i in range(len(wlr)):
-            print("%s (pick %.1f)" % (wlr[i][0], wlr[i][1]))
+    wnr = wnr[-3:]
+    bnr = bnr[:3]
 
-    if len(blr) == 0 and len(bhr) == 0:
-        print("\nrichardson can't get any better!")
-    else:
-        print("\nrichardson would be better if the following attributes were higher: ")
-        for i in range(len(bhr)):
-            print("%s (pick %.1f)" % (bhr[i][0], bhr[i][1]))
-        print("\nrichardson would be better if the following attributes were lower: ")
-        for i in range(len(blr)):
-            print("%s (pick %.1f)" % (blr[i][0], blr[i][1]))
+    print("richardson would be worse if the following attributes were higher: ")
+    for i in range(len(whr)):
+        print("%s (pick %.1f)" % (whr[i][0], whr[i][1]))
+    print("\nrichardson would be worse if the following attributes were lower: ")
+    for i in range(len(wlr)):
+        print("%s (pick %.1f)" % (wlr[i][0], wlr[i][1]))
+    print("\nrichardson would be worse if there was no data for the following attributes: ")
+    for i in range(len(wnr)):
+        print("%s (pick %.1f)" % (wnr[i][0], wnr[i][1]))
+
+    print("\nrichardson would be better if the following attributes were higher: ")
+    for i in range(len(bhr)):
+        print("%s (pick %.1f)" % (bhr[i][0], bhr[i][1]))
+    print("\nrichardson would be better if the following attributes were lower: ")
+    for i in range(len(blr)):
+        print("%s (pick %.1f)" % (blr[i][0], blr[i][1]))
+    print("\nrichardson would be better if there was no data for the following attributes: ")
+    for i in range(len(bnr)):
+        print("%s (pick %.1f)" % (bnr[i][0], bnr[i][1]))
 
 
-def preprocess(value, to_categorical, is_combine):
+def preprocess_row(row):
+    result = []
+    for i in range(len(row[1:-1])):
+        value = row[i + 1]
+        # for the first value (position), set this value to true so
+        # the preprocess function knows to one-hot encode the data
+        # the combine data is everything before the 9th value
+        is_combine = 0 < i <= num_combine_data
+        # ignore the grades where the player didn't have enough snaps
+        # after the combine data, the even column numbers contain the grades, and the odd ones contain the snaps
+        if i > num_combine_data and i != row_length:
+            try:
+                ignore = float(row[i]) < min_snaps and i % 2 == 0
+            except ValueError:
+                ignore = True
+        else:
+            ignore = False
+
+        if i <= num_combine_data or i % 2 == 0 or i == row_length:
+            # preprocess the data point, and tack it onto the end of the list
+            # (which includes all the data for the current player)
+            result += preprocess(value, is_combine, ignore)
+
+    return result
+
+
+def preprocess(value, is_combine, ignore):
     if value == '':
-        rvalue = 0.0
+        rvalue = [0.0]
     elif is_num(value):
-        rvalue = float(value)
+        rvalue = [float(value)]
     elif '/' in value:
         # this is the cell with the pick information in it; we need to extract just the overall number of the pick
         # split the string into 4 parts: team / round / pick num / year
@@ -177,24 +203,22 @@ def preprocess(value, to_categorical, is_combine):
         #         pick_num[2][3:5] == "th", "value: " + pick_num[2][3:4])
 
         # the overall pick number is in the 3rd part of the string, and we cut out the text after the number
-        rvalue = float(pick_num[2][:ind])
+        rvalue = [float(pick_num[2][:ind])]
     else:
         try:
-            rvalue = position_dict[value]
+            rvalue = one_hot(position_dict[value])
         except KeyError:
             raise Exception("Unknown input: %s" % value)
 
-    if to_categorical:
-        rvalue = one_hot(rvalue)
-    # elif is_combine:
-    #     if rvalue == 0:
-    #         # for the combine data, we insert a data point telling the model whether the player participated in the
-    #         # combine drill (to potentially improve performance)
-    #         rvalue = [0, rvalue]
-    #     else:
-    #         rvalue = [1, rvalue]
-    else:
-        rvalue = [rvalue]
+    if is_combine:
+        if rvalue[0] == 0:
+            # for the combine data, we insert a data point telling the model whether the player participated in the
+            # combine drill (to potentially improve performance)
+            rvalue.insert(0, 0.0)
+        else:
+            rvalue.insert(0, 1.0)
+    elif ignore:
+        rvalue = [0.0]
 
     # if type(rvalue) == np.ndarray:
     #     raise Exception("unexpected numpy array: " + str(rvalue))
@@ -205,7 +229,7 @@ def preprocess(value, to_categorical, is_combine):
 def split_train_test(data):
     random.shuffle(data)
 
-    num_train_data = int(.8 * len(data))  # number of elements that will be in the training data set
+    num_train_data = int(train_percentage * len(data))  # number of elements that will be in the training data set
     # first n data points are the training set, rest are the test set
     train_set = data[:num_train_data]
     train_input = []
@@ -222,6 +246,18 @@ def split_train_test(data):
         # first num_classes-1 values are the input, last value is the output
         test_input.append(player[:-1])
         test_output.append(player[-1])
+
+    # for i in range(len(test_input)):
+    #     if len(test_input[i]) != 24:
+    #         print(len(test_input[i]))
+    #     if i<6:
+    #         print(test_input[i])
+
+    # convert to numpy arrays
+    train_input = np.asarray(train_input)
+    train_output = np.asarray(train_output)
+    test_input = np.asarray(test_input)
+    test_output = np.asarray(test_output)
 
     return train_input, train_output, test_input, test_output
 
@@ -246,70 +282,61 @@ def leaky_model():
 
 # change the input to the model slightly to see how the result would change
 def counterfactuals(model, original):
-    num_classes = 18
+    higher_cfs = []
+    lower_cfs = []
+    no_data_cfs = []
 
-    positive_cfs = []
-    negative_cfs = []
-
-    i = num_classes + 1
+    i = num_positions + 1
     while i < original.size:
         modified = copy.deepcopy(original)
         modified[0, i] *= 1.05
-        positive_cfs.append((cf_datum(i - num_classes), model.predict(np.array(modified))[0][0]))
+        higher_cfs.append((cf_datum(i - num_positions), model.predict(modified)[0][0]))
+
         modified[0, i] *= .85
-        negative_cfs.append((cf_datum(i - num_classes), model.predict(np.array(modified))[0][0]))
+        lower_cfs.append((cf_datum(i - num_positions), model.predict(modified)[0][0]))
 
-        i += 1
+        modified[0, i] = 0
+        no_data_cfs.append((cf_datum(i - num_positions), model.predict(modified)[0][0]))
 
-    return positive_cfs, negative_cfs
+        i += 2
+
+    return higher_cfs, lower_cfs, no_data_cfs
 
 
 def cf_datum(i):
     if i == 1:
         return "height"
-    if i == 2:
-        return "weight"
     if i == 3:
-        return "40 time"
-    if i == 4:
-        return "vert"
+        return "weight"
     if i == 5:
-        return "bench"
-    if i == 6:
-        return "broad"
+        return "40 time"
     if i == 7:
-        return "3cone"
-    if i == 8:
-        return "shuttle"
+        return "vert"
     if i == 9:
-        return "2021 snaps"
-    if i == 10:
-        return "2021 grade"
+        return "bench"
     if i == 11:
-        return "2020 snaps"
-    if i == 12:
-        return "2020 grade"
+        return "broad"
     if i == 13:
-        return "2019 snaps"
-    if i == 14:
-        return "2019 grade"
+        return "3cone"
     if i == 15:
-        return "2018 snaps"
-    if i == 16:
-        return "2018 grade"
+        return "shuttle"
     if i == 17:
-        return "2017 snaps"
-    if i == 18:
-        return "2017 grade"
+        return "2021 grade"
     if i == 19:
-        return "2016 snaps"
-    if i == 20:
+        return "2020 grade"
+    if i == 21:
+        return "2019 grade"
+    if i == 23:
+        return "2018 grade"
+    if i == 25:
+        return "2017 grade"
+    if i == 27:
         return "2016 grade"
-    return "idek man"
+    raise Exception("counterfactuals bug")
 
 
 def one_hot(n):
-    return keras.utils.to_categorical(n, num_classes=18).tolist()
+    return keras.utils.to_categorical(n, num_classes=num_positions).tolist()
 
 
 def step_decay(epoch):
