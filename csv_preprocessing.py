@@ -1,5 +1,9 @@
 import csv
 
+position_dict = {'QB': 0.0, 'OT': 1.0, 'OL': 2.0, 'OG': 2.0, 'C': 3.0, 'RB': 4.0, 'HB': 4.0, 'FB': 4.0, 'TE': 5.0,
+                 'WR': 6.0, 'DT': 7.0, 'DL': 8.0, 'DE': 9.0, 'EDGE': 9.0, 'OLB': 10.0, 'LB': 11.0, 'CB': 12.0,
+                 'DB': 13.0, 'S': 14.0, 'P': 15.0, 'K': 16.0, 'LS': 17.0}
+
 
 def main():
     # merge_data()
@@ -11,9 +15,78 @@ def main():
 def convert_to_percentile():
     with open("sportsref_download_with_pff.csv", mode='r') as file:
         reader = csv.reader(file)
+        next(reader)
+
+        pos_vals = []
+        for i in range(12):
+            pos_vals.append([])
+            for c in range(8):
+                pos_vals[-1].append([])
+
         file_rep = []
         for row in reader:
-            pass
+            file_rep.append(row)
+            for i in range(8):
+                pos_num = percentile_pos_num(row[1])
+                try:
+                    datum = float(row[i+2])
+                    if datum != 0:
+                        pos_vals[pos_num][i].append(float(row[i + 2]))
+                except ValueError:
+                    if row[i+2] != '':
+                        raise ValueError("wtf is this: " + row[i+2])
+
+        for i in range(len(pos_vals)):
+            for c in range(len(pos_vals[i])):
+                pos_vals[i][c].sort()
+
+        for row in file_rep:
+            pos_num = percentile_pos_num(row[1])
+            for i in range(len(row[2:10])):
+                try:
+                    ranked_list = pos_vals[pos_num][i]
+                    datum = float(row[i+2])
+                    rank_start = ranked_list.index(datum)
+                    rank_end = rank_start
+                    while ranked_list[rank_end] == rank_start:
+                        rank_end += 1
+                    rank = ((rank_end - 1) + rank_start) / 2
+                    percentile = round(rank / len(ranked_list) * 100, 1)
+                except ValueError:
+                    percentile = -50
+                row[i+2] = percentile
+
+    with open("sportsref_download_with_pff.csv", mode='w') as file:
+        writer = csv.writer(file)
+        for i in range(len(file_rep)):
+            writer.writerow(file_rep[i])
+
+
+def percentile_pos_num(pos):
+    if pos == 'QB':
+        return 0
+    if pos == 'OT':
+        return 1
+    if pos == 'OL' or pos == 'OG' or pos == 'C':
+        return 2
+    if pos == 'RB' or pos == 'HB' or pos == 'FB':
+        return 3
+    if pos == 'TE':
+        return 4
+    if pos == 'WR':
+        return 5
+    if pos == 'DT' or pos == 'DL':
+        return 6
+    if pos == 'DE' or pos == 'EDGE' or pos == 'OLB':
+        return 7
+    if pos == 'LB':
+        return 8
+    if pos == 'CB':
+        return 9
+    if pos == 'DB' or pos == 'S':
+        return 10
+    if pos == 'P' or pos == 'K' or pos == 'LS':
+        return 11
 
 
 def test():
