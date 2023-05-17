@@ -2,9 +2,18 @@ import csv
 
 
 def main():
-    merge_data()
+    # merge_data()
     # position_nums_to_letters()
     # test()
+    convert_to_percentile()
+
+
+def convert_to_percentile():
+    with open("sportsref_download_with_pff.csv", mode='r') as file:
+        reader = csv.reader(file)
+        file_rep = []
+        for row in reader:
+            pass
 
 
 def test():
