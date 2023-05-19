@@ -11,28 +11,32 @@ import random
 import math
 
 num_inputs = 40
-epochs = 40
-neurons = [15, 15, 15, 1]
-lr = 0.0003
+epochs = 10000
+neurons = [40, 30, 15, 7, 1]
+lr = 0.0007
+batch_size = 64
+early_stopping = True
+patience = 0.5
+momentum = 0.85
 train_percentage = .8
 
-he_normal = True
+he_normal = False
 position_dict = {'QB': 0.0, 'OT': 1.0, 'OL': 2.0, 'OG': 2.0, 'C': 3.0, 'RB': 4.0, 'HB': 4.0, 'FB': 4.0, 'TE': 5.0,
-                 'WR': 6.0, 'DT': 7.0, 'DL': 8.0, 'DE': 9.0, 'EDGE': 9.0, 'OLB': 10.0, 'LB': 11.0, 'CB': 12.0,
-                 'DB': 13.0, 'S': 14.0, 'P': 15.0, 'K': 16.0, 'LS': 17.0}
-num_positions = 18
+                 'WR': 6.0, 'DT': 7.0, 'DL': 8.0, 'DE': 9.0, 'EDGE': 9.0, 'OLB': 9.0, 'LB': 10.0, 'CB': 11.0,
+                 'DB': 12.0, 'S': 13.0}
+num_positions = 14
 num_combine_data = 8
 row_length = 21
-min_snaps = 140
+min_snaps = 100
 
-load_model = False
-save_model_threshold = 52
+load_model = True
+save_model_threshold = 68
 
-cfs_threshold = 8
+cfs_threshold = 10
 
 
 def main():
-    base_file = open("sportsref_download_with_pff.csv", mode='r')
+    base_file = open("sportsref_with_pff_new.csv", mode='r')
 
     reader = csv.reader(base_file)
     next(reader)
@@ -67,40 +71,40 @@ def main():
     model.summary()
 
     # lrate_scheduler = keras.callbacks.LearningRateScheduler(step_decay)
-    model.compile(loss=tf.keras.losses.MeanAbsoluteError(), optimizer=keras.optimizers.Adam(learning_rate=lr))
-    model.fit(train_input, train_output, epochs=epochs)
+    callbacks = []
+    if early_stopping:
+        callbacks.append(tf.keras.callbacks.EarlyStopping(monitor="loss", patience=patience))
+    model.compile(loss=tf.keras.losses.MeanAbsoluteError(),
+                  optimizer=keras.optimizers.RMSprop(learning_rate=lr, momentum=momentum))
+    model.fit(train_input, train_output, epochs=epochs, callbacks=callbacks, batch_size=batch_size)
     score = model.evaluate(test_input, test_output)
-
-    if score < save_model_threshold:
-        model.save("model")
-        print("model saved!")
 
     # test_cases = []
 
     richardson_data = ['richardson', 'QB', 73, 98, 1, 100, -50, 100, -50, -50,
-                       767, 80.3, 192, 74.8, 14, 65.5, 0, 0, 0, 0, 0, 0, 81]
+                       767, 80.3, 192, 74.8, 14, 65.5, 0, 0, 0, 0, 0, 0, 81, -81]
     # test_cases.append(preprocess_row(richardson_data))
 
-    bad_qb_data = ['bad qb', 'QB', 7, 3, 97, 4, 12, 9, 87, 92,
-                   0, 0, 900, 25, 900, 30, 900, 35, 0, 0, 0, 0, 81]
+    bad_player_data = ['bad edge', 'EDGE', 7, 3, 97, 4, 12, 9, 87, 92,
+                   0, 0, 900, 25, 900, 30, 900, 35, 0, 0, 0, 0, 81, -81]
     # test_cases.append(preprocess_row(bad_qb_data))
 
-    good_qb_data = ['good qb', 'QB', 96, 100, 6, 100, 98, 99, 0, 2,
-                    0, 0, 700, 95.2, 900, 92.6, 800, 50, 800, 73, 0, 0, 81]
+    good_player_data = ['good edge', 'EDGE', 96, 100, 6, 100, 98, 99, 0, 2,
+                    0, 0, 700, 97.2, 900, 95.6, 800, 92.1, 800, 73, 0, 0, 81, -81]
     # test_cases.append(preprocess_row(good_qb_data))
 
     branch_data = ['branch', 'S', 40, 12, 56, 35, 24, 77, -50, -50,
-                   768, 89.5, 624, 76.6, 290, 72.4, 0, 0, 0, 0, 0, 0, 81]
+                   768, 89.5, 624, 76.6, 290, 72.4, 0, 0, 0, 0, 0, 0, 81, -81]
     # test_cases.append(preprocess_row(branch_data))
 
     lawrence_data = ['lawrence', 'QB', 95, 44, -50, -50, -50, -50, -50, -50,
-                     0, 0, 624, 91.1, 841, 91.1, 776, 90.7, 0, 0, 0, 0, 81]
+                     0, 0, 624, 91.1, 841, 91.1, 776, 90.7, 0, 0, 0, 0, 81, -81]
 
     mid_ed_data = ['mid edge', 'EDGE', 63, 44, 31, 62, 85, 21, 45, 56,
-                   500, 74, 624, 60, 841, 83, 776, 50, 0, 0, 0, 0, 81]
+                   500, 74, 624, 60, 841, 83, 776, 50, 0, 0, 0, 0, 81, -81]
 
-    model_darling_data = ['model darling', 'QB', 1, 1, 1, 1, 50, 12, 1, 1,
-                   500, 1, 624, 1, 841, 99, 776, 1, 500, 1, 500, 99, 81]
+    model_darling_data = ['model darling', 'QB', 1, 1, 1, 1, 1, 99, 1, 1,
+                   500, 3, 624, 20, 841, 24, 776, 99, 200, 99, 0, 0, 81, -81]
 
     # test_cases.append(preprocess_row(lawrence_data))
     #
@@ -114,19 +118,25 @@ def main():
     # print("Trevor Lawrence prediction: pick " + str(predictions[4][0]) + '\n')
 
     print()
-    # run_counterfactuals(model, richardson_data)
-    run_counterfactuals(model, bad_qb_data)
-    run_counterfactuals(model, good_qb_data)
-    # run_counterfactuals(model, branch_data)
-    # run_counterfactuals(model, lawrence_data)
-    # run_counterfactuals(model, mid_ed_data)
+    run_counterfactuals(model, richardson_data)
+    bad_prediction = run_counterfactuals(model, bad_player_data)
+    good_prediction = run_counterfactuals(model, good_player_data)
+    run_counterfactuals(model, branch_data)
+    run_counterfactuals(model, lawrence_data)
+    run_counterfactuals(model, mid_ed_data)
     run_counterfactuals(model, model_darling_data)
+    print("prediction difference: " + str(round(bad_prediction - good_prediction)))
+
+    if score < save_model_threshold:
+        model.save("model")
+        print("model saved!")
 
 
 def run_counterfactuals(model, data):
     player_name = data[0]
-    higher_cfs, lower_cfs, no_data_cfs, optimals = counterfactuals(model, np.asarray([preprocess_row(data)]))
-    prediction = round(model.predict(np.asarray([preprocess_row(data)]), verbose=0)[0][0], 1)
+    data = np.asarray([preprocess_row(data)[:-1]])
+    higher_cfs, lower_cfs, no_data_cfs, optimals = counterfactuals(model, data, True)
+    prediction = round(model.predict(data, verbose=0)[0][0], 1)
     print(player_name + " prediction: pick " + str(prediction))
 
     lower_cfs.sort(key=lambda x: x[1])  # sort by the model's prediction
@@ -165,41 +175,43 @@ def run_counterfactuals(model, data):
     for i in range(len(optimals)):
         print("%s: %.1f (pick %.1f)" % (optimals[i][0], optimals[i][1], optimals[i][2]))
 
-    # if len(wh_cfs) != 0:
-    #     print(player_name + " would be worse if the following attributes were higher: ")
-    #     for i in range(len(wh_cfs)):
-    #         print("%s (%.1f -> %.1f, pick %.1f)" % (wh_cfs[i][0], wh_cfs[i][2], wh_cfs[i][3], wh_cfs[i][1]))
-    #
-    # if len(wl_cfs) != 0:
-    #     print("\n" + player_name + " would be worse if the following attributes were lower: ")
-    #     for i in range(len(wl_cfs)):
-    #         print("%s (%.1f -> %.1f, pick %.1f)" % (wl_cfs[i][0], wl_cfs[i][2], wl_cfs[i][3], wl_cfs[i][1]))
+    if len(wh_cfs) != 0:
+        print(player_name + " would be worse if the following attributes were higher: ")
+        for i in range(len(wh_cfs)):
+            print("%s (%.1f -> %.1f, pick %.1f)" % (wh_cfs[i][0], wh_cfs[i][2], wh_cfs[i][3], wh_cfs[i][1]))
 
-    # if len(wn_cfs) != 0:
-    #     print("\n" + player_name + " would be worse if there was no data for the following attributes: ")
-    #     for i in range(len(wn_cfs)):
-    #         print("%s (pick %.1f)" % (wn_cfs[i][0], wn_cfs[i][1]))
+    if len(wl_cfs) != 0:
+        print("\n" + player_name + " would be worse if the following attributes were lower: ")
+        for i in range(len(wl_cfs)):
+            print("%s (%.1f -> %.1f, pick %.1f)" % (wl_cfs[i][0], wl_cfs[i][2], wl_cfs[i][3], wl_cfs[i][1]))
 
-    # if len(bh_cfs) != 0:
-    #     print("\n" + player_name + " would be better if the following attributes were higher: ")
-    #     for i in range(len(bh_cfs)):
-    #         print("%s (%.1f -> %.1f, pick %.1f)" % (bh_cfs[i][0], bh_cfs[i][2], bh_cfs[i][3], bh_cfs[i][1]))
+    if len(wn_cfs) != 0:
+        print("\n" + player_name + " would be worse if there was no data for the following attributes: ")
+        for i in range(len(wn_cfs)):
+            print("%s (pick %.1f)" % (wn_cfs[i][0], wn_cfs[i][1]))
 
-    # if len(bl_cfs) != 0:
-    #     print("\n" + player_name + " would be better if the following attributes were lower: ")
-    #     for i in range(len(bl_cfs)):
-    #         print("%s (%.1f -> %.1f, pick %.1f)" % (bl_cfs[i][0], bl_cfs[i][2], bl_cfs[i][3], bl_cfs[i][1]))
+    if len(bh_cfs) != 0:
+        print("\n" + player_name + " would be better if the following attributes were higher: ")
+        for i in range(len(bh_cfs)):
+            print("%s (%.1f -> %.1f, pick %.1f)" % (bh_cfs[i][0], bh_cfs[i][2], bh_cfs[i][3], bh_cfs[i][1]))
 
-    # if len(bn_cfs) != 0:
-    #     print("\n" + player_name + " would be better if there was no data for the following attributes: ")
-    #     for i in range(len(bn_cfs)):
-    #         print("%s (pick %.1f)" % (bn_cfs[i][0], bn_cfs[i][1]))
+    if len(bl_cfs) != 0:
+        print("\n" + player_name + " would be better if the following attributes were lower: ")
+        for i in range(len(bl_cfs)):
+            print("%s (%.1f -> %.1f, pick %.1f)" % (bl_cfs[i][0], bl_cfs[i][2], bl_cfs[i][3], bl_cfs[i][1]))
+
+    if len(bn_cfs) != 0:
+        print("\n" + player_name + " would be better if there was no data for the following attributes: ")
+        for i in range(len(bn_cfs)):
+            print("%s (pick %.1f)" % (bn_cfs[i][0], bn_cfs[i][1]))
 
     print("-----------------------------------------------------------------------")
 
+    return prediction
+
 
 # change the input to the model slightly to see how the result would change
-def counterfactuals(model, original):
+def counterfactuals(model, original, is_optimals):
     higher_cfs = []
     lower_cfs = []
     no_data_cfs = []
@@ -219,24 +231,26 @@ def counterfactuals(model, original):
         lower_cfs.append((cf_datum(i - num_positions), model.predict(modified, verbose=0)[0][0],
                           original[0, i], modified[0, i]))
 
-        optimal = (sys.maxsize, -81)
-        k = 3
-        while k <= 100:
-            modified[0, i] = k
-            prediction = model.predict(modified, verbose=0)[0][0]
-            if prediction < optimal[0]:
-                optimal = (prediction, k)
+        if is_optimals:
+            optimal = (sys.maxsize, -81)
+            k = 3
+            while k <= 100:
+                modified[0, i] = k
+                prediction = model.predict(modified, verbose=0)[0][0]
+                if prediction < optimal[0]:
+                    optimal = (prediction, k)
 
-            k += 3
+                k += 3
 
-        if abs(optimal[0] - original_prediction) > cfs_threshold:
-            optimals.append((cf_datum(i - num_positions), optimal[1], optimal[0]))
+            if abs(optimal[0] - original_prediction) > cfs_threshold:
+                optimals.append((cf_datum(i - num_positions), optimal[1], optimal[0]))
 
         if is_combine:
             modified[0, i - 1] = 0
             modified[0, i] = -50
         else:
             modified[0, i] = 0
+
         no_data_cfs.append((cf_datum(i - num_positions), model.predict(modified, verbose=0)[0][0]))
 
         if is_combine and not i == num_positions + num_combine_data * 2 - 1:
@@ -244,7 +258,10 @@ def counterfactuals(model, original):
         else:
             i += 1
 
-    return higher_cfs, lower_cfs, no_data_cfs, optimals
+    if is_optimals:
+        return higher_cfs, lower_cfs, no_data_cfs, optimals
+    else:
+        return higher_cfs, lower_cfs, no_data_cfs
 
 
 def preprocess_row(row):
@@ -270,6 +287,19 @@ def preprocess_row(row):
             # (which includes all the data for the current player)
             result += preprocess(value, is_combine, ignore)
 
+    year_grades = result[num_inputs-6:-1]
+    year_grades = [g for g in year_grades if g != 0]
+
+    if len(year_grades) == 0:
+        print(row[0])
+
+    while len(year_grades) < 6:
+        year_grades.append(0)
+
+    result = result[:num_inputs-6] + year_grades + [result[-1]]
+
+    if len(result) != num_inputs + 1:
+        raise Exception("wrong length, row: " + str(row))
     return result
 
 
@@ -325,6 +355,9 @@ def split_train_test(data):
         train_input.append(player[:-1])
         train_output.append(player[-1])
 
+        if len(player[:-1]) != 40:
+            raise ValueError("wrong length: " + str(len(player[:-1])))
+
     test_set = data[num_train_data:]
     test_input = []
     test_output = []
@@ -332,6 +365,9 @@ def split_train_test(data):
         # first num_classes-1 values are the input, last value is the output
         test_input.append(player[:-1])
         test_output.append(player[-1])
+
+        if len(player[:-1]) != 40:
+            raise ValueError("wrong length: " + str(len(player[:-1])))
 
     # for i in range(len(test_input)):
     #     if len(test_input[i]) != 24:
@@ -344,6 +380,8 @@ def split_train_test(data):
     train_output = np.asarray(train_output)
     test_input = np.asarray(test_input)
     test_output = np.asarray(test_output)
+    print(train_input.shape)
+    print(test_input.shape)
 
     return train_input, train_output, test_input, test_output
 
@@ -384,18 +422,18 @@ def cf_datum(i):
     if i == 15:
         return "shuttle"
     if i == 16:
-        return "2021 grade"
+        return "latest year grade"
     if i == 17:
-        return "2020 grade"
+        return "2 years ago grade"
     if i == 18:
-        return "2019 grade"
+        return "3 years ago grade"
     if i == 19:
-        return "2018 grade"
+        return "4 years ago grade"
     if i == 20:
-        return "2017 grade"
+        return "5 years ago grade"
     if i == 21:
-        return "2016 grade"
-    raise Exception("counterfactuals bug")
+        return "6 years ago grade"
+    raise Exception("counterfactuals bug, i=" + str(i))
 
 
 def one_hot(n):

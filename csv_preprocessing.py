@@ -1,20 +1,74 @@
 import csv
 
-position_dict = {'QB': 0.0, 'OT': 1.0, 'OL': 2.0, 'OG': 2.0, 'C': 3.0, 'RB': 4.0, 'HB': 4.0, 'FB': 4.0, 'TE': 5.0,
-                 'WR': 6.0, 'DT': 7.0, 'DL': 8.0, 'DE': 9.0, 'EDGE': 9.0, 'ED': 9.0, 'OLB': 10.0, 'LB': 11.0, 'CB': 12.0,
-                 'DB': 13.0, 'S': 14.0, 'P': 15.0, 'K': 16.0, 'LS': 17.0}
+position_dict = {'QB': 0.0, 'OT': 1.0, 'T': 1.0, 'OL': 2.0, 'OG': 2.0, 'G': 2.0, 'C': 3.0, 'RB': 4.0, 'HB': 4.0,
+                 'FB': 4.0, 'TE': 5.0, 'WR': 6.0, 'DT': 7.0, 'DI': 7.0, 'DL': 8.0, 'DE': 9.0, 'EDGE': 9.0, 'ED': 9.0,
+                 'OLB': 10.0, 'LB': 11.0, 'CB': 12.0, 'DB': 13.0, 'S': 14.0, 'P': 15.0, 'K': 16.0, 'LS': 17.0, 'ST': 18,
+                 '': 19.0}
+
+pos_groups = [['QB'],
+              ['OT', 'T', 'OL', 'OG', 'G', 'C'],
+              ['RB', 'HB', 'FB'],
+              ['TE'],
+              ['WR'],
+              ['DT', 'DI', 'DL'],
+              ['DE', 'DL', 'ED', 'EDGE', 'OLB', 'LB'],
+              ['CB', 'DB', 'S'],
+              ['P'],
+              ['K', 'PK'],
+              ['LS'],
+              ['ST']]
 
 
 def main():
-    merge_data()
-    # position_nums_to_letters()
-    # test()
+    # fix_empty_pick_num()
+    # merge_data()
     # convert_to_percentile()
     # get_rid_of_whitespace()
+    # fuck_special_teams()
+    add_combine_data("2017")
+    add_combine_data("2018")
+
+
+def add_combine_data(year):
+    data = []
+    with open("combine_data_" + year + ".csv", mode='r') as file:
+        reader = csv.reader(file)
+        next(reader)
+
+    with open("sportsref_with_pff_new.csv", mode='a') as file:
+        writer = csv.writer(file)
+        for row in data:
+            writer.writerow(row)
+
+
+# remove all solely special teams players
+def fuck_special_teams():
+    file_rep = []
+    with open("sportsref_with_pff_new.csv", mode='r') as file:
+        reader = csv.reader(file)
+
+        for row in reader:
+            if row[2] != 'K' and row[2] != 'P' and row[2] != 'PK' and row[2] != 'LS' and row[2] != 'ST':
+                file_rep.append(row)
+
+    write_file(file_rep)
+
+
+def fix_empty_pick_num():
+    file_rep = []
+    with open("sportsref_with_pff_new.csv", mode='r') as file:
+        reader = csv.reader(file)
+
+        for row in reader:
+            if row[-2] == '':
+                row[-2] = '300'
+            file_rep.append(row)
+
+    write_file(file_rep)
 
 
 def write_file(file_rep):
-    with open("sportsref_download_with_pff.csv", mode='w', newline='') as file:
+    with open("sportsref_with_pff_new.csv", mode='w', newline='') as file:
         writer = csv.writer(file)
         for i in range(len(file_rep)):
             writer.writerow(file_rep[i])
@@ -22,7 +76,7 @@ def write_file(file_rep):
 
 def get_rid_of_whitespace():
     file_rep = []
-    with open("sportsref_download_with_pff.csv", mode='r') as file:
+    with open("sportsref_with_pff_new.csv", mode='r') as file:
         reader = csv.reader(file)
 
         for row in reader:
@@ -33,7 +87,7 @@ def get_rid_of_whitespace():
 
 
 def convert_to_percentile():
-    with open("sportsref_download_with_pff.csv", mode='r') as file:
+    with open("sportsref_with_pff_new.csv", mode='r') as file:
         reader = csv.reader(file)
 
         pos_vals = []
@@ -49,12 +103,12 @@ def convert_to_percentile():
                 for i in range(8):
                     pos_num = percentile_pos_num(row[1])
                     try:
-                        datum = float(row[i+2])
+                        datum = float(row[i + 2])
                         if datum != 0:
                             pos_vals[pos_num][i].append(float(row[i + 2]))
                     except ValueError:
-                        if row[i+2] != '':
-                            raise ValueError("wtf is this: " + row[i+2])
+                        if row[i + 2] != '':
+                            raise ValueError("wtf is this: " + row[i + 2])
 
         for i in range(len(pos_vals)):
             for c in range(len(pos_vals[i])):
@@ -65,7 +119,7 @@ def convert_to_percentile():
             for i in range(len(row[2:10])):
                 try:
                     ranked_list = pos_vals[pos_num][i]
-                    datum = float(row[i+2])
+                    datum = float(row[i + 2])
                     rank_start = ranked_list.index(datum)
                     rank_end = rank_start
                     while ranked_list[rank_end] == rank_start:
@@ -74,7 +128,7 @@ def convert_to_percentile():
                     percentile = round(rank / len(ranked_list) * 100, 1)
                 except ValueError:
                     percentile = -50
-                row[i+2] = percentile
+                row[i + 2] = percentile
 
     write_file(file_rep)
 
@@ -130,7 +184,7 @@ def test():
 
 
 def position_nums_to_letters():
-    with open("sportsref_download_with_pff.csv", mode='r') as file:
+    with open("sportsref_with_pff_new.csv", mode='r') as file:
         reader = csv.reader(file)
         file_rep = []
         for row in reader:
@@ -152,7 +206,7 @@ def position_nums_to_letters():
 
 
 def merge_data():
-    base_file = open("sportsref_download_with_pff.csv", mode='r+')
+    base_file = open("sportsref_with_pff_new.csv", mode='r+')
     reader = csv.reader(base_file)
 
     base_data = []
@@ -172,7 +226,7 @@ def merge_data():
 # file name is the start of the file name (ex. defense_summary)
 # for each year from 2016 to 2021, the function will find the data with the start of that file name
 # (ex. defense_summary_2016.csv)
-# base_data is the combine data read in from sportsref_download_with_pff.csv
+# base_data is the combine data read in from sp.csv
 # when the program finds a match, it will insert the pff data into base_data in the proper place. it returns the
 # updated version of base_data
 def find_matches(file_name, base_data):
@@ -206,15 +260,22 @@ def find_matches(file_name, base_data):
         reader = csv.reader(files[year_index])
         for row in reader:
             for base_index in range(len(base_data)):
+                try:
+                    k = position_dict[row[2]]
+                except KeyError:
+                    if row[2] != 'position':
+                        raise ValueError("unknown position: " + row[2] + "; player: " + row[0] +
+                                         "; file name: " + file_name)
                 # if the name and position match
-                if row[0] == base_data[base_index][0] and same_pos(row[2], base_data[base_index][1]):
+                if same_name(row[0], base_data[base_index][0]) and same_pos(row[2], base_data[base_index][1]):
                     # find where games played and the grade should be added for the current year
-                    output_snaps_index = 11 + 2 * (5 - year_index)
+                    output_snaps_index = 10 + 2 * (5 - year_index)
                     output_grade_index = output_snaps_index + 1
                     if output_grade_index >= 23:
                         raise Exception(
                             "grade index should be less than 23, it is " + str(output_grade_index) + ". year "
-                            "index is " + str(year_index))
+                                                                                                     "index is " + str(
+                                year_index))
 
                     # for rbs the snaps count isn't as clean, so we have to add 2 values
                     if input_snaps_index == -1:
@@ -264,18 +325,10 @@ def find_matches(file_name, base_data):
 
 # returns true if the 2 given positions are considered the same position
 def same_pos(pos1, pos2):
-    return pos1 == pos2 or \
-        (pos1 == "OL" and (pos2 == 'OT' or pos2 == 'OG' or pos2 == 'C')) or \
-        (pos2 == 'OL' and (pos1 == 'OT' or pos1 == 'OG' or pos1 == 'C')) or \
-        (pos1 == 'RB' and (pos2 == 'HB' or pos2 == 'FB')) or \
-        (pos2 == 'RB' and (pos1 == 'HB' or pos1 == 'FB')) or \
-        (pos1 == 'DL' and (pos2 == 'DT' or pos2 == 'EDGE' or pos2 == 'DE' or pos2 == 'ED' or pos2 == 'DI')) or \
-        (pos2 == 'DL' and (pos1 == 'DT' or pos1 == 'EDGE' or pos1 == 'DE' or pos1 == 'ED' or pos2 == 'DI')) or \
-        (pos1 == 'DI' and pos2 == 'DT') or (pos2 == 'DT' and pos1 == 'DI') or \
-        (pos1 == 'EDGE' and (pos2 == 'OLB' or pos2 == 'DE' or pos2 == 'ED')) or \
-        (pos2 == 'EDGE' and (pos1 == 'OLB' or pos1 == 'DE' or pos1 == 'ED')) or \
-        (pos1 == 'OLB' and pos2 == 'LB') or (pos2 == 'LB' and pos1 == 'OLB') or \
-        (pos1 == 'DB' and (pos2 == 'S' or pos2 == 'CB')) or (pos2 == 'DB' and (pos1 == 'S' or pos1 == 'CB'))
+    for pos_group in pos_groups:
+        if pos1 in pos_group and pos2 in pos_group:
+            return True
+    return pos1 == '' or pos2 == '' or pos1 == 'ST' and (pos2 == 'P' or pos2 == 'K' or pos2 == 'ST')
 
 
 # returns true if the given position is an offensive position
@@ -334,6 +387,21 @@ def is_num(value):
         return True
     except ValueError:
         return False
+
+
+def same_name(name1, name2):
+    n1 = name1.lower()
+    n2 = name2.lower()
+    names1 = n1.split(" ")
+    names2 = n2.split(" ")
+    if names1[0] == "josh" and names2[0] == "joshua" or names2[0] == "josh" and names1[0] == "joshua":
+        if same_name(names1[1], names1[1]):
+            return True
+    if names1[0] == "jeff" and names2[0] == "jeffrey" or names2[0] == "jeff" and names1[0] == "jeffrey":
+        if same_name(names1[1], names1[2]):
+            return True
+    return n1 == n2 or n1 == n2 + " jr." or n2 == n1 + " jr." or \
+        n1 == n2 + " ii" or n2 == n1 + " ii" or n1 == n2 + " iii" or n2 == n1 + " iii"
 
 
 main()
