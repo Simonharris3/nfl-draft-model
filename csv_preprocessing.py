@@ -18,6 +18,66 @@ pos_groups = [['QB'],
               ['LS'],
               ['ST']]
 
+name_pairs = [['josh', 'joshua'],
+              ['jeff', 'jeffrey'],
+              ['chris', 'christopher']]
+
+school_pairs = [['alab a&m', 'alabama a&m'],
+                ['app state', 'appalachian state'],
+                ['ark state', 'arkansas state'],
+                ['boston col.', 'boston col'],
+                ['bowling green', 'bowl green'],
+                ['central michigan', 'c michigan'],
+                ['central florida', 'ucf'],
+                ['cal', 'california'],
+                ['cent ark', 'central arkansas'],
+                ['charleston southern', 'charles so'],
+                ['colo state', 'colorado state'],
+                ['east carolina', 'e carolina'],
+                ['east. washington', 'e washgton'],
+                ['florida atlantic', 'fau'],
+                ['ga state', 'georgia state'],
+                ['georgia tech', 'ga tech'],
+                ['illinois state', 'ill state'],
+                ['jacksonville state', 'jville state'],
+                ['louisiana-lafayette', 'la lafayet'],
+                ['louisiana tech', 'la tech'],
+                ['miami (fl)', 'miami fl'],
+                ['miami (oh)', 'miami oh'],
+                ['mich state', 'michigan state'],
+                ['miss state', 'mississippi state'],
+                ['missouri state', 'mo state'],
+                ['n carolina', 'north carolina'],
+                ['n dak st', 'north dakota st'],
+                ['n illinois', 'northern illinois'],
+                ['n texas', 'north texas'],
+                ['nc state', 'north carolina state'],
+                ['new mex state', 'new mexico state'],
+                ['nwestern', 'northwestern'],
+                ['okla state', 'oklahoma state'],
+                ['mississippi', 'ole miss'],
+                ['south alabama', 's alabama'],
+                ['s carolina', 'south carolina'],
+                ['south dakota state', 's dak st'],
+                ['usf', 'south florida'],
+                ['s jose st', 'san jose state'],
+                ['s diego st', 'san diego state'],
+                ['so miss', 'southern miss'],
+                ['stf austin', 'stephen f. austin'],
+                ['stny brook', 'stony brook'],
+                ['tenn state', 'tennessee state'],
+                ['texas-san antonio', 'utsa'],
+                ['utep', 'texas-el paso'],
+                ['virginia tech', 'va tech'],
+                ['western kentucky', 'w kentucky'],
+                ['w georgia', 'western georgia'],
+                ['w virginia', 'west virginia'],
+                ['w michigan', 'western michigan'],
+                ['wake forest', 'wake'],
+                ['wash state', 'washington state'],
+                ['wm & mary', 'william & mary'],
+                ['youngstown state'], ['yngtown st']]
+
 
 def main():
     # fix_empty_pick_num()
@@ -27,6 +87,11 @@ def main():
     # fuck_special_teams()
     add_combine_data("2017")
     add_combine_data("2018")
+    add_combine_data("2019")
+    add_combine_data("2020")
+    add_combine_data("2021")
+    add_combine_data("2022")
+    add_combine_data("2023")
 
 
 def add_combine_data(year):
@@ -35,10 +100,36 @@ def add_combine_data(year):
         reader = csv.reader(file)
         next(reader)
 
-    with open("sportsref_with_pff_new.csv", mode='a') as file:
+        for row in reader:
+            row_rep = row
+            if row_rep[-1] == '':
+                row_rep[-1] = '300'
+
+            ht = float(row_rep[3])
+            if ht > 1000:
+                row_rep[3] = date_to_height(ht)
+
+            zeros = []
+            # leave space for grade data
+            for i in range(12):
+                zeros.append('0')
+
+            row_rep = row_rep[0:2] + row_rep[3:-1] + zeros + [row_rep[-1], row_rep[2]]
+            data.append(row_rep)
+
+    with open("all_combine_data.csv", mode='a', newline='') as file:
         writer = csv.writer(file)
         for row in data:
             writer.writerow(row)
+
+
+def date_to_height(num):
+    if num == 36678:
+        return '72'
+    elif num < 45078:
+        return str(num - 44986)
+    else:
+        return str(num - 45005)
 
 
 # remove all solely special teams players
@@ -266,8 +357,8 @@ def find_matches(file_name, base_data):
                     if row[2] != 'position':
                         raise ValueError("unknown position: " + row[2] + "; player: " + row[0] +
                                          "; file name: " + file_name)
-                # if the name and position match
-                if same_name(row[0], base_data[base_index][0]) and same_pos(row[2], base_data[base_index][1]):
+                # if the name and school match
+                if same_name(row[0], base_data[base_index][0]) and same_school(row[3], base_data[base_index][-1]):
                     # find where games played and the grade should be added for the current year
                     output_snaps_index = 10 + 2 * (5 - year_index)
                     output_grade_index = output_snaps_index + 1
@@ -395,13 +486,32 @@ def same_name(name1, name2):
     names1 = n1.split(" ")
     names2 = n2.split(" ")
     if names1[0] == "josh" and names2[0] == "joshua" or names2[0] == "josh" and names1[0] == "joshua":
-        if same_name(names1[1], names1[1]):
+        if same_name(names1[1], names2[1]):
             return True
     if names1[0] == "jeff" and names2[0] == "jeffrey" or names2[0] == "jeff" and names1[0] == "jeffrey":
-        if same_name(names1[1], names1[2]):
+        if same_name(names1[1], names2[1]):
             return True
+
     return n1 == n2 or n1 == n2 + " jr." or n2 == n1 + " jr." or \
         n1 == n2 + " ii" or n2 == n1 + " ii" or n1 == n2 + " iii" or n2 == n1 + " iii"
+
+
+def same_school(school1, school2):
+    s1 = school1.lower()
+    s2 = school2.lower()
+
+    for i in range(len(school_pairs)):
+        if s1 in school_pairs[i] and s2 in school_pairs[i]:
+            return True
+
+    words1 = school1.split(" ")
+    words2 = school2.split(" ")
+
+    if words1[:-1] == words2[:-1] and ((words1[-1] == "state" and words2[-1] == "st") or
+                                       (words1[-1] == "st" and words2[-1] == "state")):
+        return True
+
+    return s1 == s2
 
 
 main()
