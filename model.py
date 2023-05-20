@@ -128,7 +128,7 @@ def main():
     print("prediction difference: " + str(round(bad_prediction - good_prediction)))
 
     if score < save_model_threshold:
-        model.save("model")
+        model.save("model configuration")
         print("model saved!")
 
 

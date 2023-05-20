@@ -82,21 +82,21 @@ school_pairs = [['alab a&m', 'alabama a&m'],
 def main():
     # fix_empty_pick_num()
     # merge_data()
-    # convert_to_percentile()
+    convert_to_percentile()
     # get_rid_of_whitespace()
-    # fuck_special_teams()
-    add_combine_data("2017")
-    add_combine_data("2018")
-    add_combine_data("2019")
-    add_combine_data("2020")
-    add_combine_data("2021")
-    add_combine_data("2022")
-    add_combine_data("2023")
+    # remove_special_teams()
+    # add_combine_data("2017")
+    # add_combine_data("2018")
+    # add_combine_data("2019")
+    # add_combine_data("2020")
+    # add_combine_data("2021")
+    # add_combine_data("2022")
+    # add_combine_data("2023")
 
 
 def add_combine_data(year):
     data = []
-    with open("combine_data_" + year + ".csv", mode='r') as file:
+    with open("combine data/combine_data_" + year + ".csv", mode='r') as file:
         reader = csv.reader(file)
         next(reader)
 
@@ -105,9 +105,10 @@ def add_combine_data(year):
             if row_rep[-1] == '':
                 row_rep[-1] = '300'
 
-            ht = float(row_rep[3])
-            if ht > 1000:
-                row_rep[3] = date_to_height(ht)
+            if is_num(row_rep[3]):
+                ht = float(row_rep[3])
+                if ht > 1000:
+                    row_rep[3] = date_to_height(ht)
 
             zeros = []
             # leave space for grade data
@@ -117,7 +118,7 @@ def add_combine_data(year):
             row_rep = row_rep[0:2] + row_rep[3:-1] + zeros + [row_rep[-1], row_rep[2]]
             data.append(row_rep)
 
-    with open("all_combine_data.csv", mode='a', newline='') as file:
+    with open("combine data/all_combine_data.csv", mode='a', newline='') as file:
         writer = csv.writer(file)
         for row in data:
             writer.writerow(row)
@@ -133,16 +134,17 @@ def date_to_height(num):
 
 
 # remove all solely special teams players
-def fuck_special_teams():
-    file_rep = []
-    with open("sportsref_with_pff_new.csv", mode='r') as file:
+def remove_special_teams():
+    with open("combine data/all_combine_data.csv", mode='r') as file:
+        file_rep = []
         reader = csv.reader(file)
 
         for row in reader:
             if row[2] != 'K' and row[2] != 'P' and row[2] != 'PK' and row[2] != 'LS' and row[2] != 'ST':
                 file_rep.append(row)
 
-    write_file(file_rep)
+    with open("combine data/all_combine_data.csv", mode='w', newline='') as file:
+        write_file(file_rep, file)
 
 
 def fix_empty_pick_num():
@@ -155,30 +157,30 @@ def fix_empty_pick_num():
                 row[-2] = '300'
             file_rep.append(row)
 
-    write_file(file_rep)
+        write_file(file_rep, file)
 
 
-def write_file(file_rep):
-    with open("sportsref_with_pff_new.csv", mode='w', newline='') as file:
-        writer = csv.writer(file)
-        for i in range(len(file_rep)):
-            writer.writerow(file_rep[i])
+def write_file(file_rep, file):
+    writer = csv.writer(file)
+    for i in range(len(file_rep)):
+        writer.writerow(file_rep[i])
 
 
 def get_rid_of_whitespace():
     file_rep = []
-    with open("sportsref_with_pff_new.csv", mode='r') as file:
+    with open("combine data/all_combine_data.csv", mode='r') as file:
         reader = csv.reader(file)
 
         for row in reader:
             if len(row) > 0:
                 file_rep.append(row)
 
-    write_file(file_rep)
+    with open("combine data/all_combine_data.csv", mode='w', newline='') as file:
+        write_file(file_rep, file)
 
 
 def convert_to_percentile():
-    with open("sportsref_with_pff_new.csv", mode='r') as file:
+    with open("combine data/all_combine_data.csv", mode='r') as file:
         reader = csv.reader(file)
 
         pos_vals = []
@@ -191,6 +193,7 @@ def convert_to_percentile():
         for row in reader:
             file_rep.append(row)
             if row[0] != "Name":
+                print(row)
                 for i in range(8):
                     pos_num = percentile_pos_num(row[1])
                     try:
@@ -206,22 +209,24 @@ def convert_to_percentile():
                 pos_vals[i][c].sort()
 
         for row in file_rep:
-            pos_num = percentile_pos_num(row[1])
-            for i in range(len(row[2:10])):
-                try:
-                    ranked_list = pos_vals[pos_num][i]
-                    datum = float(row[i + 2])
-                    rank_start = ranked_list.index(datum)
-                    rank_end = rank_start
-                    while ranked_list[rank_end] == rank_start:
-                        rank_end += 1
-                    rank = ((rank_end - 1) + rank_start) / 2
-                    percentile = round(rank / len(ranked_list) * 100, 1)
-                except ValueError:
-                    percentile = -50
-                row[i + 2] = percentile
+            if row[0] != "Name":
+                pos_num = percentile_pos_num(row[1])
+                for i in range(len(row[2:10])):
+                    try:
+                        ranked_list = pos_vals[pos_num][i]
+                        datum = float(row[i + 2])
+                        rank_start = ranked_list.index(datum)
+                        rank_end = rank_start
+                        while ranked_list[rank_end] == rank_start:
+                            rank_end += 1
+                        rank = ((rank_end - 1) + rank_start) / 2
+                        percentile = round(rank / len(ranked_list) * 100, 1)
+                    except ValueError:
+                        percentile = -50
+                    row[i + 2] = percentile
 
-    write_file(file_rep)
+    base_file = open("k.csv", mode='w', newline='')
+    write_file(file_rep, base_file)
 
 
 def percentile_pos_num(pos):
@@ -239,9 +244,9 @@ def percentile_pos_num(pos):
         return 5
     if pos == 'DT' or pos == 'DL':
         return 6
-    if pos == 'DE' or pos == 'EDGE' or pos == 'OLB':
+    if pos == 'DE' or pos == 'EDGE' or pos == 'OLB' or pos == 'ED':
         return 7
-    if pos == 'LB':
+    if pos == 'LB' or pos == 'ILB':
         return 8
     if pos == 'CB':
         return 9
@@ -249,6 +254,8 @@ def percentile_pos_num(pos):
         return 10
     if pos == 'P' or pos == 'K' or pos == 'LS':
         return 11
+    else:
+        raise ValueError("unexpected position: " + pos)
 
 
 def test():
@@ -267,7 +274,7 @@ def test():
                 print("found")
                 file_rep[i][c] = '22'
 
-    file_w = open("Book1.csv", mode="w")
+    file_w = open("Book1.csv", mode="w", newline='')
     writer = csv.writer(file_w)
     for i in range(len(file_rep)):
         writer.writerow(file_rep[i])
@@ -281,7 +288,6 @@ def position_nums_to_letters():
         for row in reader:
             if len(row) != 0:
                 row_rep = row
-                print(row)
                 if is_num(row[1]):
                     # noinspection PyTypeChecker
                     row_rep[1] = nums_to_letters(row[1])
@@ -293,7 +299,7 @@ def position_nums_to_letters():
 
                 file_rep.append(row_rep)
 
-    write_file(file_rep)
+        write_file(file_rep, file)
 
 
 def merge_data():
@@ -310,14 +316,14 @@ def merge_data():
     base_data = find_matches("receiving_summary", base_data)
     base_data = find_matches("offense_blocking", base_data)
 
-    write_file(base_data)
+    write_file(base_data, base_file)
 
 
 # finds players in the pff data that also have combine data, and inserts the pff data into the combine file.
 # file name is the start of the file name (ex. defense_summary)
 # for each year from 2016 to 2021, the function will find the data with the start of that file name
 # (ex. defense_summary_2016.csv)
-# base_data is the combine data read in from sp.csv
+# base_data is the combine data read in from sportsref_with_pff_new.csv
 # when the program finds a match, it will insert the pff data into base_data in the proper place. it returns the
 # updated version of base_data
 def find_matches(file_name, base_data):
@@ -365,8 +371,7 @@ def find_matches(file_name, base_data):
                     if output_grade_index >= 23:
                         raise Exception(
                             "grade index should be less than 23, it is " + str(output_grade_index) + ". year "
-                                                                                                     "index is " + str(
-                                year_index))
+                            "index is " + str(year_index))
 
                     # for rbs the snaps count isn't as clean, so we have to add 2 values
                     if input_snaps_index == -1:
