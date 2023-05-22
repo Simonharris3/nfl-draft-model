@@ -22,8 +22,8 @@ train_percentage = .8
 
 he_normal = False
 position_dict = {'QB': 0.0, 'OT': 1.0, 'OL': 2.0, 'OG': 2.0, 'C': 3.0, 'RB': 4.0, 'HB': 4.0, 'FB': 4.0, 'TE': 5.0,
-                 'WR': 6.0, 'DT': 7.0, 'DL': 8.0, 'DE': 9.0, 'EDGE': 9.0, 'OLB': 9.0, 'LB': 10.0, 'CB': 11.0,
-                 'DB': 12.0, 'S': 13.0}
+                 'WR': 6.0, 'DT': 7.0, 'DL': 8.0, 'DE': 9.0, 'EDGE': 9.0, 'OLB': 9.0, 'LB': 10.0, 'ILB': 10.0,
+                 'CB': 11.0, 'DB': 12.0, 'S': 13.0}
 num_positions = 14
 num_combine_data = 8
 row_length = 21
@@ -48,6 +48,7 @@ def main():
         inputs_outputs.append(preprocess_row(row))
         # don't count the first column (player name) or the last column (nfl pff grade which currently isn't being used)
 
+    exit(1)
     train_input, train_output, test_input, test_output = split_train_test(inputs_outputs)
 
     if load_model:
@@ -117,15 +118,15 @@ def main():
     # print("Brian Branch prediction: pick " + str(predictions[3][0]))
     # print("Trevor Lawrence prediction: pick " + str(predictions[4][0]) + '\n')
 
-    print()
-    run_counterfactuals(model, richardson_data)
-    bad_prediction = run_counterfactuals(model, bad_player_data)
-    good_prediction = run_counterfactuals(model, good_player_data)
-    run_counterfactuals(model, branch_data)
-    run_counterfactuals(model, lawrence_data)
-    run_counterfactuals(model, mid_ed_data)
-    run_counterfactuals(model, model_darling_data)
-    print("prediction difference: " + str(round(bad_prediction - good_prediction)))
+    # print()
+    # run_counterfactuals(model, richardson_data)
+    # bad_prediction = run_counterfactuals(model, bad_player_data)
+    # good_prediction = run_counterfactuals(model, good_player_data)
+    # run_counterfactuals(model, branch_data)
+    # run_counterfactuals(model, lawrence_data)
+    # run_counterfactuals(model, mid_ed_data)
+    # run_counterfactuals(model, model_darling_data)
+    # print("prediction difference: " + str(round(bad_prediction - good_prediction)))
 
     if score < save_model_threshold:
         model.save("model configuration")
@@ -324,7 +325,7 @@ def preprocess(value, is_combine, ignore):
         try:
             rvalue = one_hot(position_dict[value])
         except KeyError:
-            raise Exception("Unknown input: %s" % value)
+            raise Exception("Unknown position: %s" % value)
 
     if is_combine:
         if rvalue[0] == -50:

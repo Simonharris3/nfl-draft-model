@@ -5,6 +5,14 @@ position_dict = {'QB': 0.0, 'OT': 1.0, 'T': 1.0, 'OL': 2.0, 'OG': 2.0, 'G': 2.0,
                  'OLB': 10.0, 'LB': 11.0, 'CB': 12.0, 'DB': 13.0, 'S': 14.0, 'P': 15.0, 'K': 16.0, 'LS': 17.0, 'ST': 18,
                  '': 19.0}
 
+pff_data_indices = {"defense_summary": (12, 31), "passing_summary": (23, 28), "receiving_summary": (19, 28),
+                    "offense_blocking": (8, 24)}
+rushing_indices = (23, (34, 35))
+
+label_row = ["Name", "Pos", "Height", "Weight", "40 time", "Vert", "Bench",	"Broad", "3cone", "Shuttle", "2021 snaps",
+             "2021 grade", "2020 snaps", "2020 grade", "2019 snaps", "2019 grade", "2018 snaps", "2018 grade",
+             "2017 snaps", "2017 grade", "2016 snaps", "2016 grade", "Pick", "School"]
+
 pos_groups = [['QB'],
               ['OT', 'T', 'OL', 'OG', 'G', 'C'],
               ['RB', 'HB', 'FB'],
@@ -76,22 +84,24 @@ school_pairs = [['alab a&m', 'alabama a&m'],
                 ['wake forest', 'wake'],
                 ['wash state', 'washington state'],
                 ['wm & mary', 'william & mary'],
-                ['youngstown state'], ['yngtown st']]
+                ['youngstown state', 'yngtown st']]
 
 
 def main():
     # fix_empty_pick_num()
-    # merge_data()
-    convert_to_percentile()
     # get_rid_of_whitespace()
-    # remove_special_teams()
-    # add_combine_data("2017")
-    # add_combine_data("2018")
-    # add_combine_data("2019")
-    # add_combine_data("2020")
-    # add_combine_data("2021")
-    # add_combine_data("2022")
-    # add_combine_data("2023")
+
+    # with open("combine data/all_combine_data.csv", mode='w', newline='') as file:
+    #     writer = csv.writer(file)
+    #     writer.writerow(label_row)
+    #
+    # for i in range(7):
+    #     add_combine_data(str(i+2017))
+    #
+    remove_special_teams()
+
+    # convert_to_percentile()
+    # merge_production_data()
 
 
 def add_combine_data(year):
@@ -135,15 +145,15 @@ def date_to_height(num):
 
 # remove all solely special teams players
 def remove_special_teams():
-    with open("combine data/all_combine_data.csv", mode='r') as file:
+    with open("sportsref_with_pff_new.csv", mode='r') as file:
         file_rep = []
         reader = csv.reader(file)
 
         for row in reader:
-            if row[2] != 'K' and row[2] != 'P' and row[2] != 'PK' and row[2] != 'LS' and row[2] != 'ST':
+            if row[1] != 'K' and row[1] != 'P' and row[1] != 'PK' and row[1] != 'LS' and row[1] != 'ST':
                 file_rep.append(row)
 
-    with open("combine data/all_combine_data.csv", mode='w', newline='') as file:
+    with open("sportsref_with_pff_new.csv", mode='w', newline='') as file:
         write_file(file_rep, file)
 
 
@@ -193,7 +203,6 @@ def convert_to_percentile():
         for row in reader:
             file_rep.append(row)
             if row[0] != "Name":
-                print(row)
                 for i in range(8):
                     pos_num = percentile_pos_num(row[1])
                     try:
@@ -217,15 +226,22 @@ def convert_to_percentile():
                         datum = float(row[i + 2])
                         rank_start = ranked_list.index(datum)
                         rank_end = rank_start
-                        while ranked_list[rank_end] == rank_start:
+                        while ranked_list[rank_end] == ranked_list[rank_start] and rank_end+1 < len(ranked_list):
                             rank_end += 1
-                        rank = ((rank_end - 1) + rank_start) / 2
+                        if rank_end > rank_start:
+                            rank = ((rank_end - 1) + rank_start) / 2
+                        else:
+                            rank = rank_start
+
                         percentile = round(rank / len(ranked_list) * 100, 1)
+
+                        if percentile < 0:
+                            raise Exception("negative percentile")
                     except ValueError:
                         percentile = -50
                     row[i + 2] = percentile
 
-    base_file = open("k.csv", mode='w', newline='')
+    base_file = open("sportsref_with_pff_new.csv", mode='w', newline='')
     write_file(file_rep, base_file)
 
 
@@ -281,28 +297,7 @@ def test():
     file_w.close()
 
 
-def position_nums_to_letters():
-    with open("sportsref_with_pff_new.csv", mode='r') as file:
-        reader = csv.reader(file)
-        file_rep = []
-        for row in reader:
-            if len(row) != 0:
-                row_rep = row
-                if is_num(row[1]):
-                    # noinspection PyTypeChecker
-                    row_rep[1] = nums_to_letters(row[1])
-
-                for i in range(len(row[11:23])):
-                    # make sure it's not the first row
-                    if row[1] != "QB" and row[i + 11] != "" and row[1] != "Pos":
-                        row_rep[i + 11] = ""
-
-                file_rep.append(row_rep)
-
-        write_file(file_rep, file)
-
-
-def merge_data():
+def merge_production_data():
     base_file = open("sportsref_with_pff_new.csv", mode='r+')
     reader = csv.reader(base_file)
 
@@ -316,7 +311,8 @@ def merge_data():
     base_data = find_matches("receiving_summary", base_data)
     base_data = find_matches("offense_blocking", base_data)
 
-    write_file(base_data, base_file)
+    with open("sportsref_with_pff_new.csv", mode='w', newline='') as file:
+        write_file(base_data, file)
 
 
 # finds players in the pff data that also have combine data, and inserts the pff data into the combine file.
@@ -328,30 +324,24 @@ def merge_data():
 # updated version of base_data
 def find_matches(file_name, base_data):
     files = []
-    rb_snap_indices = (34, 35)
-    input_snaps_index = -1
     ex_output = []
+    input_snaps_index = -1
+    rb_snap_indices = None
 
     # find where the snap count and grade is stored dependent on file
-    if file_name == "defense_summary":
-        input_grade_index = 12
-        input_snaps_index = 31
-    elif file_name == "offense_blocking":
-        input_grade_index = 8
-        input_snaps_index = 24
-    elif file_name == "rushing_summary":
-        input_grade_index = 23
-    elif file_name == "receiving_summary":
-        input_grade_index = 19
-        input_snaps_index = 28
-    elif file_name == "passing_summary":
-        input_grade_index = 23
-        input_snaps_index = 28
-    else:
-        raise ValueError("unknown file name: " + file_name)
+    try:
+        input_grade_index, input_snaps_index = pff_data_indices[file_name]
+    except KeyError:
+        if file_name == "rushing_summary":
+            rushing = True
+            input_grade_index = rushing_indices[0]
+            rb_snap_indices = rushing_indices[1]
+        else:
+            raise ValueError("unknown file name: " + file_name)
 
     for i in range(6):
-        files.append(open(file_name + "_20" + str(i + 16) + ".csv", mode='r'))
+        files.append(open("pff data/" + file_name + "_20" + str(i + 16) + ".csv", mode='r'))
+
     # iterate through each file of the new data (one for every year)
     for year_index in range(6):
         reader = csv.reader(files[year_index])
@@ -373,8 +363,8 @@ def find_matches(file_name, base_data):
                             "grade index should be less than 23, it is " + str(output_grade_index) + ". year "
                             "index is " + str(year_index))
 
-                    # for rbs the snaps count isn't as clean, so we have to add 2 values
-                    if input_snaps_index == -1:
+                    # for the rushing file the snap count isn't as clean, so we have to add 2 values
+                    if rb_snap_indices:
                         snaps = float(row[rb_snap_indices[0]]) + float(row[rb_snap_indices[1]])
                     else:
                         snaps = float(row[input_snaps_index])
@@ -399,12 +389,11 @@ def find_matches(file_name, base_data):
                                         (same_pos(row[2], 'RB') and file_name == "rushing_summary"):
                                     base_data[base_index][output_snaps_index] = snaps
                                     base_data[base_index][output_grade_index] = grade
-                            # otherwise, we go with the data that better represents the players position.
                         else:
+                            # for defensive positions, we only get the data from the defense
                             if file_name == "defense_summary":
                                 base_data[base_index][output_snaps_index] = snaps
                                 base_data[base_index][output_grade_index] = grade
-                            # for defensive positions, we only get the data from the defense
 
                     # if len(ex_output) < 5:
                     #     ex_output.append(base_data[base_index][0:2] + base_data[base_index][11:])
@@ -417,6 +406,28 @@ def find_matches(file_name, base_data):
             print(ex_output[i])
 
     return base_data
+
+
+def position_nums_to_letters():
+    with open("sportsref_with_pff_new.csv", mode='r') as file:
+        reader = csv.reader(file)
+        file_rep = []
+        for row in reader:
+            if len(row) != 0:
+                row_rep = row
+                if is_num(row[1]):
+                    # noinspection PyTypeChecker
+                    row_rep[1] = nums_to_letters(row[1])
+
+                for i in range(len(row[11:23])):
+                    # make sure it's not the first row
+                    if row[1] != "QB" and row[i + 11] != "" and row[1] != "Pos":
+                        row_rep[i + 11] = ""
+
+                file_rep.append(row_rep)
+
+    with open("sportsref_with_pff_new.csv", mode='w', newline='') as file:
+        write_file(file_rep, file)
 
 
 # returns true if the 2 given positions are considered the same position
@@ -490,12 +501,10 @@ def same_name(name1, name2):
     n2 = name2.lower()
     names1 = n1.split(" ")
     names2 = n2.split(" ")
-    if names1[0] == "josh" and names2[0] == "joshua" or names2[0] == "josh" and names1[0] == "joshua":
-        if same_name(names1[1], names2[1]):
-            return True
-    if names1[0] == "jeff" and names2[0] == "jeffrey" or names2[0] == "jeff" and names1[0] == "jeffrey":
-        if same_name(names1[1], names2[1]):
-            return True
+    for i in range(len(name_pairs)):
+        if names1[0] in name_pairs[i] and names2[0] in name_pairs[i]:
+            if same_name(names1[1], names2[1]):
+                return True
 
     return n1 == n2 or n1 == n2 + " jr." or n2 == n1 + " jr." or \
         n1 == n2 + " ii" or n2 == n1 + " ii" or n1 == n2 + " iii" or n2 == n1 + " iii"
