@@ -10,7 +10,7 @@ import csv
 import random
 import math
 
-num_inputs = 40
+
 epochs = 10000
 neurons = [40, 30, 15, 7, 1]
 lr = 0.0007
@@ -26,13 +26,18 @@ position_dict = {'QB': 0.0, 'OT': 1.0, 'OL': 2.0, 'OG': 2.0, 'C': 3.0, 'RB': 4.0
                  'CB': 11.0, 'DB': 12.0, 'S': 13.0}
 num_positions = 14
 num_combine_data = 8
-row_length = 21
+num_years = 6
+num_inputs = num_positions + num_combine_data*2 + num_years
+no_measurement_default = -50
+row_length = 22
 min_snaps = 100
 
-load_model = True
+load_model = False
 save_model_threshold = 68
 
 cfs_threshold = 10
+measurements = ["height", "weight", "40 time", "bench", "vert", "broad", "3cone", "shuttle", "latest year grade",
+                "2 years ago grade", "3 years ago grade", "4 years ago grade", "5 years ago grade", "6 years ago grade"]
 
 
 def main():
@@ -48,7 +53,6 @@ def main():
         inputs_outputs.append(preprocess_row(row))
         # don't count the first column (player name) or the last column (nfl pff grade which currently isn't being used)
 
-    exit(1)
     train_input, train_output, test_input, test_output = split_train_test(inputs_outputs)
 
     if load_model:
@@ -80,23 +84,23 @@ def main():
     model.fit(train_input, train_output, epochs=epochs, callbacks=callbacks, batch_size=batch_size)
     score = model.evaluate(test_input, test_output)
 
-    # test_cases = []
+    test_cases = []
 
     richardson_data = ['richardson', 'QB', 73, 98, 1, 100, -50, 100, -50, -50,
                        767, 80.3, 192, 74.8, 14, 65.5, 0, 0, 0, 0, 0, 0, 81, -81]
-    # test_cases.append(preprocess_row(richardson_data))
+    test_cases.append(preprocess_row(richardson_data))
 
     bad_player_data = ['bad edge', 'EDGE', 7, 3, 97, 4, 12, 9, 87, 92,
                    0, 0, 900, 25, 900, 30, 900, 35, 0, 0, 0, 0, 81, -81]
-    # test_cases.append(preprocess_row(bad_qb_data))
+    test_cases.append(preprocess_row(bad_player_data))
 
     good_player_data = ['good edge', 'EDGE', 96, 100, 6, 100, 98, 99, 0, 2,
-                    0, 0, 700, 97.2, 900, 95.6, 800, 92.1, 800, 73, 0, 0, 81, -81]
-    # test_cases.append(preprocess_row(good_qb_data))
+                    0, 0, 700, 97.2, 900, 95.6, 800, 92.1, 800, 73, 0, 0, 81]
+    test_cases.append(preprocess_row(good_player_data))
 
     branch_data = ['branch', 'S', 40, 12, 56, 35, 24, 77, -50, -50,
                    768, 89.5, 624, 76.6, 290, 72.4, 0, 0, 0, 0, 0, 0, 81, -81]
-    # test_cases.append(preprocess_row(branch_data))
+    test_cases.append(preprocess_row(branch_data))
 
     lawrence_data = ['lawrence', 'QB', 95, 44, -50, -50, -50, -50, -50, -50,
                      0, 0, 624, 91.1, 841, 91.1, 776, 90.7, 0, 0, 0, 0, 81, -81]
@@ -107,26 +111,26 @@ def main():
     model_darling_data = ['model darling', 'QB', 1, 1, 1, 1, 1, 99, 1, 1,
                    500, 3, 624, 20, 841, 24, 776, 99, 200, 99, 0, 0, 81, -81]
 
-    # test_cases.append(preprocess_row(lawrence_data))
-    #
-    # predictions = model.predict(np.asarray(test_cases), verbose=0)
-    # richardson_prediction = predictions[0][0]
-    #
-    # print("Anthony Richardson prediction: pick " + str(richardson_prediction))
-    # print("bad qb prediction: pick " + str(predictions[1][0]))
-    # print("good qb prediction: pick " + str(predictions[2][0]))
-    # print("Brian Branch prediction: pick " + str(predictions[3][0]))
-    # print("Trevor Lawrence prediction: pick " + str(predictions[4][0]) + '\n')
+    test_cases.append(preprocess_row(lawrence_data))
 
-    # print()
-    # run_counterfactuals(model, richardson_data)
-    # bad_prediction = run_counterfactuals(model, bad_player_data)
-    # good_prediction = run_counterfactuals(model, good_player_data)
-    # run_counterfactuals(model, branch_data)
-    # run_counterfactuals(model, lawrence_data)
-    # run_counterfactuals(model, mid_ed_data)
-    # run_counterfactuals(model, model_darling_data)
-    # print("prediction difference: " + str(round(bad_prediction - good_prediction)))
+    predictions = model.predict(np.asarray(test_cases), verbose=0)
+    richardson_prediction = predictions[0][0]
+
+    print("Anthony Richardson prediction: pick " + str(richardson_prediction))
+    print("bad qb prediction: pick " + str(predictions[1][0]))
+    print("good qb prediction: pick " + str(predictions[2][0]))
+    print("Brian Branch prediction: pick " + str(predictions[3][0]))
+    print("Trevor Lawrence prediction: pick " + str(predictions[4][0]) + '\n')
+
+    print()
+    run_counterfactuals(model, richardson_data)
+    bad_prediction = run_counterfactuals(model, bad_player_data)
+    good_prediction = run_counterfactuals(model, good_player_data)
+    run_counterfactuals(model, branch_data)
+    run_counterfactuals(model, lawrence_data)
+    run_counterfactuals(model, mid_ed_data)
+    run_counterfactuals(model, model_darling_data)
+    print("prediction difference: " + str(round(bad_prediction - good_prediction)))
 
     if score < save_model_threshold:
         model.save("model configuration")
@@ -213,51 +217,62 @@ def run_counterfactuals(model, data):
 
 # change the input to the model slightly to see how the result would change
 def counterfactuals(model, original, is_optimals):
-    higher_cfs = []
-    lower_cfs = []
-    no_data_cfs = []
+    higher_cfs_info = []
+    lower_cfs_info = []
+    higher_data = []
+    lower_data = []
+    no_data = []
     optimals = []
 
     original_prediction = model.predict(original, verbose=0)[0][0]
-    i = num_positions + 1
-    while i < original.size:
+    for i in range(original.size):
         is_combine = i < num_positions + num_combine_data * 2
         modified = copy.deepcopy(original)
 
         modified[0, i] += 10
-        higher_cfs.append((cf_datum(i - num_positions), model.predict(modified, verbose=0)[0][0],
-                           original[0, i], modified[0, i]))
+        higher_data.append(modified)
+        higher_cfs_info.append((original[0, i], modified[0, i]))
 
         modified[0, i] -= 20
-        lower_cfs.append((cf_datum(i - num_positions), model.predict(modified, verbose=0)[0][0],
-                          original[0, i], modified[0, i]))
+        lower_data.append(modified)
+        lower_cfs_info.append((original[0, i], modified[0, i]))
 
         if is_optimals:
-            optimal = (sys.maxsize, -81)
+            optimal_data = []
             k = 3
             while k <= 100:
                 modified[0, i] = k
-                prediction = model.predict(modified, verbose=0)[0][0]
-                if prediction < optimal[0]:
-                    optimal = (prediction, k)
+                optimal_data.append(modified)
 
                 k += 3
 
+            scenarios = model.predict(optimal_data)
+            optimal = (sys.maxsize, -81)
+            for prediction in scenarios:
+                if prediction[0][0] < optimal:
+                    optimal = (prediction[0][0], k)
+
             if abs(optimal[0] - original_prediction) > cfs_threshold:
-                optimals.append((cf_datum(i - num_positions), optimal[1], optimal[0]))
+                optimals.append([cf_datum(i - num_positions), optimal[1], optimal[0]])
 
         if is_combine:
             modified[0, i - 1] = 0
-            modified[0, i] = -50
+            modified[0, i] = no_measurement_default
         else:
             modified[0, i] = 0
 
-        no_data_cfs.append((cf_datum(i - num_positions), model.predict(modified, verbose=0)[0][0]))
+        no_data.append(modified)
 
-        if is_combine and not i == num_positions + num_combine_data * 2 - 1:
-            i += 2
-        else:
-            i += 1
+    higher_cfs = []
+    lower_cfs = []
+    no_data_cfs = []
+    higher_preds = model.predict(higher_data)
+    lower_preds = model.predict(lower_data)
+    no_data_preds = model.predict(no_data)
+    for i in range(len(higher_preds)):
+        higher_cfs.append((measurements[i], higher_preds[i][0], higher_cfs_info[i][0], higher_cfs_info[i][1]))
+        lower_cfs.append((measurements[i], lower_preds[i][0], lower_cfs_info[i][0], lower_cfs_info[i][1]))
+        no_data_preds.append((measurements[i], no_data_preds[i][0]))
 
     if is_optimals:
         return higher_cfs, lower_cfs, no_data_cfs, optimals
@@ -267,7 +282,7 @@ def counterfactuals(model, original, is_optimals):
 
 def preprocess_row(row):
     result = []
-    for i in range(len(row[1:-1])):
+    for i in range(row_length):
         value = row[i + 1]
         # for the first value (position), set this value to true so
         # the preprocess function knows to one-hot encode the data
@@ -275,7 +290,7 @@ def preprocess_row(row):
         is_combine = 0 < i <= num_combine_data
         # ignore the grades where the player didn't have enough snaps
         # after the combine data, the even column numbers contain the grades, and the odd ones contain the snaps
-        if i > num_combine_data and i != row_length:
+        if i > num_combine_data and i != row_length - 1:
             try:
                 ignore = float(row[i]) < min_snaps and i % 2 == 0
             except ValueError:
@@ -283,30 +298,32 @@ def preprocess_row(row):
         else:
             ignore = False
 
-        if i <= num_combine_data or i % 2 == 0 or i == row_length:
+        if i <= num_combine_data or i % 2 == 0 or i == row_length - 1:
             # preprocess the data point, and tack it onto the end of the list
             # (which includes all the data for the current player)
             result += preprocess(value, is_combine, ignore)
 
-    year_grades = result[num_inputs-6:-1]
+    year_grades = result[num_inputs-num_years:-1]
     year_grades = [g for g in year_grades if g != 0]
 
-    if len(year_grades) == 0:
-        print(row[0])
+    # if len(year_grades) == 0:
+    #     if 2023 > float(row[-2].split(" ")[-1]):
+    #         print(row[0])
 
-    while len(year_grades) < 6:
+    while len(year_grades) < num_years:
         year_grades.append(0)
 
-    result = result[:num_inputs-6] + year_grades + [result[-1]]
+    result = result[:num_inputs-num_years] + year_grades + [result[-1]]
 
     if len(result) != num_inputs + 1:
         raise Exception("wrong length, row: " + str(row))
+
     return result
 
 
 def preprocess(value, is_combine, ignore):
     if value == '':
-        rvalue = [0.0]
+        rvalue = [-50]
     elif is_num(value):
         rvalue = [float(value)]
     elif '/' in value:
@@ -356,8 +373,8 @@ def split_train_test(data):
         train_input.append(player[:-1])
         train_output.append(player[-1])
 
-        if len(player[:-1]) != 40:
-            raise ValueError("wrong length: " + str(len(player[:-1])))
+        if len(player) != num_inputs + 1:
+            raise ValueError("wrong length: " + str(len(player)))
 
     test_set = data[num_train_data:]
     test_input = []
@@ -367,8 +384,8 @@ def split_train_test(data):
         test_input.append(player[:-1])
         test_output.append(player[-1])
 
-        if len(player[:-1]) != 40:
-            raise ValueError("wrong length: " + str(len(player[:-1])))
+        if len(player) != num_inputs + 1:
+            raise ValueError("wrong length: " + str(len(player)))
 
     # for i in range(len(test_input)):
     #     if len(test_input[i]) != 24:
@@ -434,7 +451,6 @@ def cf_datum(i):
         return "5 years ago grade"
     if i == 21:
         return "6 years ago grade"
-    raise Exception("counterfactuals bug, i=" + str(i))
 
 
 def one_hot(n):

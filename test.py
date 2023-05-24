@@ -26,3 +26,4 @@ y_test = [9.5]
 model.compile(loss=losses.MeanSquaredError(), optimizer=optimizers.Adam(learning_rate=0.001))
 model.fit(x_train, y_train, epochs=30)
 score = model.evaluate(x_test, y_test)
+

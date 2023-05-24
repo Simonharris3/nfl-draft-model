@@ -1,5 +1,8 @@
 import csv
 
+num_years = 6
+start_year = 2016
+row_length = 23
 position_dict = {'QB': 0.0, 'OT': 1.0, 'T': 1.0, 'OL': 2.0, 'OG': 2.0, 'G': 2.0, 'C': 3.0, 'RB': 4.0, 'HB': 4.0,
                  'FB': 4.0, 'TE': 5.0, 'WR': 6.0, 'DT': 7.0, 'DI': 7.0, 'DL': 8.0, 'DE': 9.0, 'EDGE': 9.0, 'ED': 9.0,
                  'OLB': 10.0, 'LB': 11.0, 'CB': 12.0, 'DB': 13.0, 'S': 14.0, 'P': 15.0, 'K': 16.0, 'LS': 17.0, 'ST': 18,
@@ -8,8 +11,9 @@ position_dict = {'QB': 0.0, 'OT': 1.0, 'T': 1.0, 'OL': 2.0, 'OG': 2.0, 'G': 2.0,
 pff_data_indices = {"defense_summary": (12, 31), "passing_summary": (23, 28), "receiving_summary": (19, 28),
                     "offense_blocking": (8, 24)}
 rushing_indices = (23, (34, 35))
+output_index_start = 10
 
-label_row = ["Name", "Pos", "Height", "Weight", "40 time", "Vert", "Bench",	"Broad", "3cone", "Shuttle", "2021 snaps",
+label_row = ["Name", "Pos", "Height", "Weight", "40 time", "Vert", "Bench", "Broad", "3cone", "Shuttle", "2021 snaps",
              "2021 grade", "2020 snaps", "2020 grade", "2019 snaps", "2019 grade", "2018 snaps", "2018 grade",
              "2017 snaps", "2017 grade", "2016 snaps", "2016 grade", "Pick", "School"]
 
@@ -28,12 +32,20 @@ pos_groups = [['QB'],
 
 name_pairs = [['josh', 'joshua'],
               ['jeff', 'jeffrey'],
-              ['chris', 'christopher']]
+              ['chris', 'christopher'],
+              ['sauce', 'ahmad'],
+              ['adoree', "adoree'"],
+              ['cameron', 'cam'],
+              ['c.j.', 'cj', 'cheyenne'],
+              ['a.j.', 'aj'],
+              ['ben', 'bennett', 'benjamin', 'binjimen'],
+              ['bisi', 'olabisi']]
 
+state = ["st.", "state", "st"]
 school_pairs = [['alab a&m', 'alabama a&m'],
                 ['app state', 'appalachian state'],
                 ['ark state', 'arkansas state'],
-                ['boston col.', 'boston col'],
+                ['boston col.', 'boston col', 'boston college'],
                 ['bowling green', 'bowl green'],
                 ['central michigan', 'c michigan'],
                 ['central florida', 'ucf'],
@@ -48,26 +60,31 @@ school_pairs = [['alab a&m', 'alabama a&m'],
                 ['georgia tech', 'ga tech'],
                 ['illinois state', 'ill state'],
                 ['jacksonville state', 'jville state'],
-                ['louisiana-lafayette', 'la lafayet'],
+                ['louisiana-lafayette', 'la lafayet', 'louisiana'],
                 ['louisiana tech', 'la tech'],
-                ['miami (fl)', 'miami fl'],
+                ['miami (fl)', 'miami fl', 'miami'],
                 ['miami (oh)', 'miami oh'],
                 ['mich state', 'michigan state'],
                 ['miss state', 'mississippi state'],
                 ['missouri state', 'mo state'],
+                ['umass', 'massachusetts'],
                 ['n carolina', 'north carolina'],
                 ['n dak st', 'north dakota st'],
                 ['n illinois', 'northern illinois'],
                 ['n texas', 'north texas'],
                 ['nc state', 'north carolina state'],
+                ['n colorado', 'northern colorado'],
                 ['new mex state', 'new mexico state'],
                 ['nwestern', 'northwestern'],
                 ['okla state', 'oklahoma state'],
                 ['mississippi', 'ole miss'],
                 ['south alabama', 's alabama'],
                 ['s carolina', 'south carolina'],
+                ['scar state', 'south carolina state'],
                 ['south dakota state', 's dak st'],
+                ['southern utah st.', 'so utah'],
                 ['usf', 'south florida'],
+                ['uab', 'alabama-birmingham'],
                 ['s jose st', 'san jose state'],
                 ['s diego st', 'san diego state'],
                 ['so miss', 'southern miss'],
@@ -84,7 +101,8 @@ school_pairs = [['alab a&m', 'alabama a&m'],
                 ['wake forest', 'wake'],
                 ['wash state', 'washington state'],
                 ['wm & mary', 'william & mary'],
-                ['youngstown state', 'yngtown st']]
+                ['youngstown state', 'yngtown st'],
+                ['rhode isld', 'rhode island']]
 
 
 def main():
@@ -101,7 +119,7 @@ def main():
     remove_special_teams()
 
     # convert_to_percentile()
-    # merge_production_data()
+    merge_production_data()
 
 
 def add_combine_data(year):
@@ -145,7 +163,7 @@ def date_to_height(num):
 
 # remove all solely special teams players
 def remove_special_teams():
-    with open("sportsref_with_pff_new.csv", mode='r') as file:
+    with open("combine data/all_combine_data.csv", mode='r') as file:
         file_rep = []
         reader = csv.reader(file)
 
@@ -153,7 +171,7 @@ def remove_special_teams():
             if row[1] != 'K' and row[1] != 'P' and row[1] != 'PK' and row[1] != 'LS' and row[1] != 'ST':
                 file_rep.append(row)
 
-    with open("sportsref_with_pff_new.csv", mode='w', newline='') as file:
+    with open("combine data/all_combine_data.csv", mode='w', newline='') as file:
         write_file(file_rep, file)
 
 
@@ -226,7 +244,7 @@ def convert_to_percentile():
                         datum = float(row[i + 2])
                         rank_start = ranked_list.index(datum)
                         rank_end = rank_start
-                        while ranked_list[rank_end] == ranked_list[rank_start] and rank_end+1 < len(ranked_list):
+                        while ranked_list[rank_end] == ranked_list[rank_start] and rank_end + 1 < len(ranked_list):
                             rank_end += 1
                         if rank_end > rank_start:
                             rank = ((rank_end - 1) + rank_start) / 2
@@ -297,24 +315,6 @@ def test():
     file_w.close()
 
 
-def merge_production_data():
-    base_file = open("sportsref_with_pff_new.csv", mode='r+')
-    reader = csv.reader(base_file)
-
-    base_data = []
-    for row in reader:
-        base_data.append(row)
-
-    base_data = find_matches("defense_summary", base_data)
-    base_data = find_matches("passing_summary", base_data)
-    base_data = find_matches("rushing_summary", base_data)
-    base_data = find_matches("receiving_summary", base_data)
-    base_data = find_matches("offense_blocking", base_data)
-
-    with open("sportsref_with_pff_new.csv", mode='w', newline='') as file:
-        write_file(base_data, file)
-
-
 # finds players in the pff data that also have combine data, and inserts the pff data into the combine file.
 # file name is the start of the file name (ex. defense_summary)
 # for each year from 2016 to 2021, the function will find the data with the start of that file name
@@ -322,90 +322,112 @@ def merge_production_data():
 # base_data is the combine data read in from sportsref_with_pff_new.csv
 # when the program finds a match, it will insert the pff data into base_data in the proper place. it returns the
 # updated version of base_data
-def find_matches(file_name, base_data):
-    files = []
-    ex_output = []
-    input_snaps_index = -1
+def merge_production_data():
+    base_file = open("combine data/all_combine_data.csv", mode='r+')
+    reader = csv.reader(base_file)
+
+    base_data = [next(reader)]
+    for row in reader:
+        pos = row[1]
+        num_data = 0
+        for i in range(num_years):
+            # get the grade and snap count from the file depending on the position.
+            # for offense, the blocking file is best.
+
+            if is_offense(pos):
+                data = find_match("offense_blocking", i, row)
+
+                if data is None:
+                    if pos in pos_groups[0]:
+                        data = find_match("passing_summary", i, row)
+                    if pos in pos_groups[2]:
+                        data = find_match("rushing_summary", i, row)
+                    if pos in pos_groups[3] or pos in pos_groups[4]:
+                        data = find_match("receiving_summary", i, row)
+            else:
+                data = find_match("defense_summary", i, row)
+
+            if data is not None:
+                row = merge_match(row, data, i)
+                num_data += 1
+
+        base_data.append(row)
+
+        if num_data == 0:
+            print(row)
+
+    with open("sportsref_with_pff_new.csv", mode='w', newline='') as file:
+        write_file(base_data, file)
+
+
+def find_match(file_name, year_index, data):
+    snaps_index = -1
     rb_snap_indices = None
+    year = year_index + start_year
 
     # find where the snap count and grade is stored dependent on file
     try:
-        input_grade_index, input_snaps_index = pff_data_indices[file_name]
+        grade_index, snaps_index = pff_data_indices[file_name]
     except KeyError:
         if file_name == "rushing_summary":
-            rushing = True
-            input_grade_index = rushing_indices[0]
+            grade_index = rushing_indices[0]
             rb_snap_indices = rushing_indices[1]
         else:
             raise ValueError("unknown file name: " + file_name)
 
-    for i in range(6):
-        files.append(open("pff data/" + file_name + "_20" + str(i + 16) + ".csv", mode='r'))
-
-    # iterate through each file of the new data (one for every year)
-    for year_index in range(6):
-        reader = csv.reader(files[year_index])
+    with open("pff data/" + file_name + "_" + str(year) + ".csv", mode='r') as file:
+        reader = csv.reader(file)
+        next(reader)
         for row in reader:
-            for base_index in range(len(base_data)):
-                try:
-                    k = position_dict[row[2]]
-                except KeyError:
-                    if row[2] != 'position':
-                        raise ValueError("unknown position: " + row[2] + "; player: " + row[0] +
-                                         "; file name: " + file_name)
-                # if the name and school match
-                if same_name(row[0], base_data[base_index][0]) and same_school(row[3], base_data[base_index][-1]):
-                    # find where games played and the grade should be added for the current year
-                    output_snaps_index = 10 + 2 * (5 - year_index)
-                    output_grade_index = output_snaps_index + 1
-                    if output_grade_index >= 23:
-                        raise Exception(
-                            "grade index should be less than 23, it is " + str(output_grade_index) + ". year "
-                            "index is " + str(year_index))
+            try:
+                k = position_dict[row[2]]
+            except KeyError:
+                if row[2] != 'position':
+                    raise ValueError("unknown position: " + row[2] + "; player: " + row[0] +
+                                     "; file name: " + file_name)
 
-                    # for the rushing file the snap count isn't as clean, so we have to add 2 values
-                    if rb_snap_indices:
-                        snaps = float(row[rb_snap_indices[0]]) + float(row[rb_snap_indices[1]])
-                    else:
-                        snaps = float(row[input_snaps_index])
+            # if data[0] == "Billy Brown" or data[0] == "Brandon Joseph" or data[0] == "Ben Victor" or \
+            #         data[0] == "Bisi Johnson" or data[0] == "Brandon Parker" or data[0] == "Braxton Jones" or \
+            #         data[0] == "C.J. O'Grady" or data[0] == "Brent Laing" or data[0] == "Bubba Bolden":
+            #     if same_name(row[0], data[0]):
+            #         print("problem case: " + data[0])
+            #         print("schools: " + row[3] + ", " + data[-1])
+            #         print("same school: " + str(same_school(row[3], data[-1])))
+            #         print()
+            #     elif row[0].split(" ")[1] == data[0].split(" ")[1] and row[0][0] == data[0][0]:
+            #         print("problem case: " + data[0])
+            #         print("names: " + row[0] + ", " + data[0])
 
-                    grade = row[input_grade_index]
-                    player_data = base_data[base_index]
-                    # if there's no data there, we insert the pff grade and snap count into the appropriate place
-                    if player_data[output_snaps_index] == "":
-                        base_data[base_index][output_snaps_index] = snaps
-                        base_data[base_index][output_grade_index] = grade
-                    else:
-                        # if there's already data there, we have to determine which data to use. first, we determine
-                        # whether a player is on offense or defense, and make sure the grade is derived from the
-                        # appropriate file. if offense, the snap count should come from the blocking file if possible.
-                        if is_offense(row[2]):
-                            if file_name == "offense_blocking":
-                                base_data[base_index][output_snaps_index] = snaps
-                                base_data[base_index][output_grade_index] = grade
-                            else:
-                                if (row[2] == 'QB' and file_name == 'passing_summary') or \
-                                        (row[2] == 'WR' and file_name == 'receiving_summary') or \
-                                        (same_pos(row[2], 'RB') and file_name == "rushing_summary"):
-                                    base_data[base_index][output_snaps_index] = snaps
-                                    base_data[base_index][output_grade_index] = grade
-                        else:
-                            # for defensive positions, we only get the data from the defense
-                            if file_name == "defense_summary":
-                                base_data[base_index][output_snaps_index] = snaps
-                                base_data[base_index][output_grade_index] = grade
+            # if same_name(row[0], data[0]) and not same_school(row[3], data[-1]):
+            #     print("non problem case: " + row[0])
+            #     print("schools: " + row[3] + ", " + data[-1])
+            #     print()
 
-                    # if len(ex_output) < 5:
-                    #     ex_output.append(base_data[base_index][0:2] + base_data[base_index][11:])
+            # if the name and school match
+            if same_name(row[0], data[0]) and (same_school(row[3], data[-1]) or same_pos(row[2], data[1])):
+                # for the rushing file the snap count isn't as clean, so we have to add 2 values
+                if rb_snap_indices:
+                    snaps = float(row[rb_snap_indices[0]]) + float(row[rb_snap_indices[1]])
+                else:
+                    snaps = float(row[snaps_index])
 
-    for i in range(6):
-        files[i].close()
+                grade = row[grade_index]
+                file.close()
+                return snaps, grade
 
-    for i in range(len(ex_output)):
-        if i < len(ex_output):
-            print(ex_output[i])
+        file.close()
+        return None
 
-    return base_data
+
+def merge_match(row, data, year_index):
+    snaps_index = output_index_start + 2 * (num_years - (year_index + 1))
+    grade_index = snaps_index + 1
+    if grade_index >= row_length:
+        raise Exception("grade index should be less than " + str(row_length) + ", it is " + str(grade_index) +
+                        ". year index is " + str(year_index))
+    row[snaps_index] = data[0]
+    row[grade_index] = data[1]
+    return row
 
 
 def position_nums_to_letters():
@@ -515,17 +537,25 @@ def same_school(school1, school2):
     s2 = school2.lower()
 
     for i in range(len(school_pairs)):
-        if s1 in school_pairs[i] and s2 in school_pairs[i]:
-            return True
+        found1 = False
+        found2 = False
+        for k in range(len(school_pairs[i])):
+            if equivalent_except_st(s1, school_pairs[i][k]):
+                found1 = True
+            if equivalent_except_st(s2, school_pairs[i][k]):
+                found2 = True
+            if found1 and found2:
+                return True
 
-    words1 = school1.split(" ")
-    words2 = school2.split(" ")
+    return equivalent_except_st(s1, s2)
 
-    if words1[:-1] == words2[:-1] and ((words1[-1] == "state" and words2[-1] == "st") or
-                                       (words1[-1] == "st" and words2[-1] == "state")):
-        return True
 
-    return s1 == s2
+def equivalent_except_st(a, b):
+    words1 = a.split(" ")
+    words2 = b.split(" ")
+
+    return a == b or a + "." == b or b + "." == a or (words1[:-1] == words2[:-1] and words1[-1] in state and
+                                                      words2[-1] in state)
 
 
 main()
